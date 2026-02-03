@@ -1,0 +1,236 @@
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi.responses import JSONResponse, FileResponse
+from typing import Optional
+import os
+import tempfile
+import subprocess
+import logging
+import time
+from app.services.image_analyzer import ImageAnalyzer
+from app.services.video_analyzer import VideoAnalyzer
+from app.services.ai_detector import AIDetector
+from app.services.report_generator import ReportGenerator
+from app.models.schemas import AnalysisResponse, Summary, AIMetadata
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+# Максимальный размер файла: 100MB
+MAX_FILE_SIZE = 100 * 1024 * 1024
+
+@router.get("/health")
+async def health_check():
+    """Проверка статуса сервиса"""
+    return {"status": "ok", "service": "deepfake-metadata-analyzer"}
+
+@router.get("/test/exiftool")
+async def test_exiftool():
+    """Тестовая проверка работы ExifTool"""
+    from app.services.image_analyzer import ImageAnalyzer
+    import os
+    
+    analyzer = ImageAnalyzer()
+    
+    result = {
+        "exiftool_available": analyzer._check_exiftool_available(),
+        "exiftool_command": None,
+        "paths_checked": analyzer._get_exiftool_paths(),
+        "test_result": None,
+        "error": None
+    }
+    
+    if result["exiftool_available"]:
+        result["exiftool_command"] = analyzer._get_exiftool_command()
+        
+        # Пробуем выполнить простую команду
+        try:
+            import subprocess
+            test_result = subprocess.run(
+                [result["exiftool_command"], '-ver'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            result["test_result"] = {
+                "returncode": test_result.returncode,
+                "stdout": test_result.stdout.strip(),
+                "stderr": test_result.stderr.strip()
+            }
+        except Exception as e:
+            result["error"] = str(e)
+    
+    return result
+
+@router.post("/analyze/image", response_model=AnalysisResponse)
+async def analyze_image(file: UploadFile = File(...)):
+    """
+    Анализ метаданных изображения
+    
+    Поддерживаемые форматы: JPEG, PNG, HEIC, HEIF
+    """
+    # Создание временного файла
+    temp_file = None
+    try:
+        content = await file.read()
+        
+        # Валидация размера файла
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail="Файл слишком большой (максимум 100MB)")
+        
+        # Валидация MIME типа
+        allowed_types = ["image/jpeg", "image/png", "image/heic", "image/heif"]
+        if file.content_type not in allowed_types:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Неподдерживаемый тип файла. Разрешены: {', '.join(allowed_types)}"
+            )
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as tmp:
+            tmp.write(content)
+            temp_file = tmp.name
+        
+        start_time = time.time()
+        logger.info(f"Начало анализа изображения: {file.filename}, размер: {len(content)} байт")
+        
+        try:
+            # Анализ изображения
+            analyzer_start = time.time()
+            analyzer = ImageAnalyzer()
+            logger.info("Запуск анализа метаданных изображения...")
+            metadata = analyzer.analyze(temp_file)
+            analyzer_time = time.time() - analyzer_start
+            logger.info(f"✓ Анализ метаданных завершен за {analyzer_time:.2f} сек")
+            
+            # Детекция ИИ
+            detector_start = time.time()
+            ai_detector = AIDetector()
+            logger.info("Запуск детекции ИИ...")
+            ai_indicators = ai_detector.detect_ai_signs(metadata, file_type="image")
+            detector_time = time.time() - detector_start
+            logger.info(f"✓ Детекция ИИ завершена за {detector_time:.2f} сек")
+            
+            # Генерация отчета
+            report_start = time.time()
+            report_gen = ReportGenerator()
+            logger.info("Генерация отчета...")
+            report_data = report_gen.format_analysis_result(
+                file_type="image",
+                metadata=metadata,
+                ai_indicators=ai_indicators
+            )
+            
+            # Генерация PDF отчета
+            report_path = report_gen.generate_pdf_report(report_data, temp_file)
+            report_time = time.time() - report_start
+            logger.info(f"✓ Генерация отчета завершена за {report_time:.2f} сек")
+            
+            total_time = time.time() - start_time
+            logger.info(f"✓ Анализ изображения полностью завершен за {total_time:.2f} сек")
+            
+            return AnalysisResponse(
+                file_type="image",
+                summary=report_data["summary"],
+                metadata=report_data["metadata"],
+                ai_indicators={
+                    "software_detected": ai_indicators.get("software_detected", []),
+                    "heuristics": ai_indicators.get("heuristics", {}),
+                    "anomalies": ai_indicators.get("anomalies", []),
+                    "evidence_from_metadata": ai_indicators.get("evidence_from_metadata") or [],
+                },
+                report_url=f"/api/reports/{os.path.basename(report_path)}"
+            )
+        except subprocess.TimeoutExpired as e:
+            logger.error(f"Таймаут при анализе изображения: {e}")
+            raise HTTPException(status_code=504, detail=f"Таймаут при анализе изображения. Файл может быть слишком большим или поврежденным.")
+        except Exception as e:
+            logger.error(f"Ошибка при анализе изображения: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Ошибка анализа: {str(e)}")
+    
+    finally:
+        # Удаление временного файла
+        if temp_file and os.path.exists(temp_file):
+            os.unlink(temp_file)
+
+@router.post("/analyze/video", response_model=AnalysisResponse)
+async def analyze_video(file: UploadFile = File(...)):
+    """
+    Анализ метаданных видео
+    
+    Поддерживаемые форматы: MP4, MOV, MKV
+    """
+    # Создание временного файла
+    temp_file = None
+    try:
+        content = await file.read()
+        
+        # Валидация размера файла
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail="Файл слишком большой (максимум 100MB)")
+        
+        # Валидация MIME типа
+        allowed_types = ["video/mp4", "video/quicktime", "video/x-matroska"]
+        if file.content_type not in allowed_types:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Неподдерживаемый тип файла. Разрешены: MP4, MOV, MKV"
+            )
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as tmp:
+            tmp.write(content)
+            temp_file = tmp.name
+        
+        # Анализ видео
+        analyzer = VideoAnalyzer()
+        metadata = analyzer.analyze(temp_file)
+        
+        # Детекция ИИ
+        ai_detector = AIDetector()
+        ai_indicators = ai_detector.detect_ai_signs(metadata, file_type="video")
+        
+        # Генерация отчета
+        report_gen = ReportGenerator()
+        report_data = report_gen.format_analysis_result(
+            file_type="video",
+            metadata=metadata,
+            ai_indicators=ai_indicators
+        )
+        
+        # Генерация PDF отчета
+        report_path = report_gen.generate_pdf_report(report_data, temp_file)
+        
+        return AnalysisResponse(
+            file_type="video",
+            summary=report_data["summary"],
+            metadata=report_data["metadata"],
+            ai_indicators={
+                "software_detected": ai_indicators.get("software_detected", []),
+                "heuristics": ai_indicators.get("heuristics", {}),
+                "anomalies": ai_indicators.get("anomalies", []),
+                "evidence_from_metadata": ai_indicators.get("evidence_from_metadata") or [],
+            },
+            report_url=f"/api/reports/{os.path.basename(report_path)}"
+        )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка анализа: {str(e)}")
+    
+    finally:
+        # Удаление временного файла
+        if temp_file and os.path.exists(temp_file):
+            os.unlink(temp_file)
+
+@router.get("/reports/{report_filename}")
+async def get_report(report_filename: str):
+    """Получение PDF отчета"""
+    reports_dir = os.path.join(tempfile.gettempdir(), "deepfake_reports")
+    report_path = os.path.join(reports_dir, report_filename)
+    
+    if not os.path.exists(report_path):
+        raise HTTPException(status_code=404, detail="Отчет не найден")
+    
+    return FileResponse(
+        report_path,
+        media_type="application/pdf",
+        filename=report_filename
+    )
