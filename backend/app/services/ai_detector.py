@@ -350,7 +350,7 @@ class AIDetector:
         result["heuristics"] = heuristics
         
         return result
-    
+
     def calculate_ai_probability(self, indicators: Dict[str, Any]) -> int:
         """
         Расчёт вероятности ИИ-вмешательства (0–100%).
@@ -448,6 +448,10 @@ class AIDetector:
         # Ограничение: если только отсутствие метаданных без других признаков, максимум 50%
         if multiple_from_missing_only and not has_strong_indicators and not software_detected:
             probability = min(probability, 50)
+        
+        # Без явных доказательств (C2PA, софт в метаданных) — только эвристики: не выше 45%
+        if not evidence and not software_detected:
+            probability = min(probability, 45)
         
         return min(probability, 100)
     

@@ -20,27 +20,30 @@
     <div class="p-8 bg-white">
       <!-- Главный индикатор вероятности ИИ -->
       <div class="mb-10 border-2 border-black p-6 bg-white relative overflow-hidden min-h-[120px] flex items-center">
-        <!-- Цветной фон-заполнение с косой правой стороной (верх правее низа) -->
+        <!-- Цветной фон: при 100% — без косой линии, при меньших — косая правая сторона -->
         <div
           class="absolute inset-y-0 left-0 transition-all duration-500"
           :style="{
             width: getVisualWidth(summary.ai_probability) + '%',
             backgroundColor: getProbabilityColor(summary.ai_probability),
-            clipPath: 'polygon(0 0, 100% 0, calc(100% - 30px) 100%, 0 100%)'
+            clipPath: summary.ai_probability >= 100 ? 'none' : 'polygon(0 0, 100% 0, calc(100% - 30px) 100%, 0 100%)'
           }"
         ></div>
         
-        <!-- Контент поверх фона -->
+        <!-- Контент поверх фона; при 100% весь текст белый -->
         <div class="relative z-10 w-full">
           <div class="flex items-center justify-between">
             <div>
-              <h3 class="text-base font-semibold mb-1" :class="summary.ai_probability > 50 ? 'text-white' : 'text-black'">
+              <h3 class="text-base font-semibold mb-1" :class="summary.ai_probability >= 100 ? 'text-white' : (summary.ai_probability > 50 ? 'text-white' : 'text-black')">
                 Вероятность ИИ-вмешательства
               </h3>
-              <p class="text-sm mt-2" :class="summary.ai_probability > 50 ? 'text-white' : 'text-gray-600'">{{ getProbabilityLabel(summary.ai_probability) }}</p>
+              <p class="text-sm mt-2" :class="summary.ai_probability >= 100 ? 'text-white' : (summary.ai_probability > 50 ? 'text-white' : 'text-gray-600')">{{ getProbabilityLabel(summary.ai_probability) }}</p>
             </div>
             <div class="text-right">
-              <div class="title-report text-black">
+              <div
+                class="title-report"
+                :style="summary.ai_probability >= 100 ? { color: '#fff' } : {}"
+              >
                 {{ summary.ai_probability }}%
               </div>
             </div>
@@ -241,9 +244,9 @@ export default {
     },
     
     getVisualWidth(probability) {
-      // Визуальная ширина заполнения (87% для отображения 90%)
+      // При 100% — шкала заполнена полностью; при 90% — визуально 87%
+      if (probability >= 100) return 100
       if (probability >= 90) return 87
-      // Для других значений можно использовать пропорцию или оставить как есть
       return probability
     },
     

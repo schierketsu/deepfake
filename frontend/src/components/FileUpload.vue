@@ -1,70 +1,65 @@
 <template>
   <div class="content-block border-2 border-black p-6">
-    <div
-      @drop="handleDrop"
-      @dragover.prevent
-      @dragenter.prevent
-      @dragleave="isDragging = false"
-      @dragenter="isDragging = true"
-      :class="[
-        'border-2 border-black p-8 text-center transition-colors cursor-pointer',
-        isDragging ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'
-      ]"
-    >
-      <input
-        ref="fileInput"
-        type="file"
-        @change="handleFileSelect"
-        accept="image/jpeg,image/png,image/heic,image/heif,video/mp4,video/quicktime,video/x-matroska"
-        class="hidden"
-      />
+    <div class="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-6">
+      <div
+        @drop="handleDrop"
+        @dragover.prevent
+        @dragenter.prevent
+        @dragleave="isDragging = false"
+        @dragenter="isDragging = true"
+        :class="[
+          'border-2 border-black p-8 text-center transition-colors cursor-pointer flex-1 sm:min-w-0',
+          isDragging ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'
+        ]"
+      >
+        <input
+          ref="fileInput"
+          type="file"
+          @change="handleFileSelect"
+          accept="image/jpeg,image/jpg,image/png,image/heic,image/heif,video/mp4,video/quicktime,video/x-matroska"
+          class="hidden"
+        />
 
-      <div class="space-y-4">
-        <svg
-          class="mx-auto h-8 w-8 text-black"
-          stroke="currentColor"
-          fill="none"
-          viewBox="0 0 48 48"
-          stroke-width="1.5"
-        >
-          <path
-            d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
+        <div class="space-y-4">
+          <svg
+            class="mx-auto h-8 w-8 text-black"
+            stroke="currentColor"
+            fill="none"
+            viewBox="0 0 48 48"
+            stroke-width="1.5"
+          >
+            <path
+              d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
 
-        <div class="space-y-1">
-          <p class="text-sm font-medium text-black">
-            Перетащите файл сюда или нажмите для выбора
-          </p>
-          <p class="text-xs text-gray-600">
-            JPEG, PNG, HEIC | MP4, MOV, MKV • Макс. 100MB
-          </p>
+          <div class="space-y-1">
+            <p class="text-sm font-medium text-black">
+              Перетащите файл сюда или нажмите для выбора
+            </p>
+            <p class="text-xs text-gray-600">
+              JPEG, PNG, HEIC | MP4, MOV, MKV
+            </p>
+          </div>
+
+          <button
+            @click="$refs.fileInput.click()"
+            class="px-6 py-3 border-2 border-black bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+          >
+            ВЫБРАТЬ ФАЙЛ
+          </button>
         </div>
+      </div>
 
-        <button
-          @click="$refs.fileInput.click()"
-          class="inline-block px-6 py-2 bg-black text-white text-xs font-medium hover:bg-gray-800 transition-colors border-2 border-black"
-        >
-          ВЫБРАТЬ ФАЙЛ
-        </button>
+      <div class="flex-shrink-0 flex items-end justify-center sm:justify-end bg-white pt-2 -mb-6 sm:-mb-6">
+        <img :src="demoImg" alt="Демо" class="max-h-48 sm:max-h-56 w-auto object-contain object-bottom" />
       </div>
     </div>
-
 
     <div v-if="error" class="mt-4 p-3 border-2 border-black bg-white">
       <p class="text-black text-xs">{{ error }}</p>
-    </div>
-
-    <div v-if="uploadProgress > 0 && uploadProgress < 100" class="mt-4">
-      <div class="w-full border-2 border-black bg-white h-2">
-        <div
-          class="bg-black h-full transition-all duration-300"
-          :style="{ width: uploadProgress + '%' }"
-        ></div>
-      </div>
-      <p class="text-center text-xs text-black mt-1">{{ uploadProgress }}%</p>
     </div>
   </div>
 </template>
@@ -72,11 +67,14 @@
 <script>
 import { analyzeImage, analyzeVideo } from '../services/api'
 
+const demoImg = new URL('../public/ddemo.png', import.meta.url).href
+
 export default {
   name: 'FileUpload',
   emits: ['file-uploaded', 'analysis-started', 'analysis-completed'],
   data() {
     return {
+      demoImg,
       selectedFile: null,
       isDragging: false,
       error: null,

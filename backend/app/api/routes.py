@@ -78,12 +78,14 @@ async def analyze_image(file: UploadFile = File(...)):
         if len(content) > MAX_FILE_SIZE:
             raise HTTPException(status_code=413, detail="Файл слишком большой (максимум 100MB)")
         
-        # Валидация MIME типа
-        allowed_types = ["image/jpeg", "image/png", "image/heic", "image/heif"]
-        if file.content_type not in allowed_types:
+        # Валидация MIME типа (допускаем также по расширению, т.к. content_type иногда пустой или нестандартный)
+        allowed_types = ["image/jpeg", "image/jpg", "image/png", "image/heic", "image/heif"]
+        fn = (file.filename or "").lower()
+        allowed_extensions = (".jpg", ".jpeg", ".png", ".heic", ".heif")
+        if file.content_type not in allowed_types and not any(fn.endswith(ext) for ext in allowed_extensions):
             raise HTTPException(
                 status_code=400, 
-                detail=f"Неподдерживаемый тип файла. Разрешены: {', '.join(allowed_types)}"
+                detail=f"Неподдерживаемый тип файла. Разрешены: JPEG, JPG, PNG, HEIC, HEIF"
             )
         
         with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as tmp:
@@ -151,6 +153,7 @@ async def analyze_image(file: UploadFile = File(...)):
         # Удаление временного файла
         if temp_file and os.path.exists(temp_file):
             os.unlink(temp_file)
+
 
 @router.post("/analyze/video", response_model=AnalysisResponse)
 async def analyze_video(file: UploadFile = File(...)):

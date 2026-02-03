@@ -1,7 +1,7 @@
 <template>
-  <div class="min-h-screen">
+  <div class="min-h-screen flex flex-col">
     <!-- Шапка на всю ширину экрана -->
-    <header class="w-full bg-white border-b-2 border-black py-8 mb-6">
+    <header class="w-full bg-white border-b-2 border-black py-8 mb-6 flex-shrink-0">
       <div class="max-w-5xl mx-auto flex items-start justify-between gap-6">
         <div class="text-left">
           <h1 class="title-main">
@@ -26,8 +26,8 @@
     </header>
 
     <!-- Основной контент -->
-    <div class="pt-6 pb-12">
-      <div class="max-w-5xl mx-auto">
+    <div class="pt-6 pb-12 flex-1 flex flex-col w-full">
+      <div class="max-w-5xl mx-auto flex-1 w-full">
         <FileUpload 
           @file-uploaded="handleFileUploaded"
           @analysis-started="isAnalyzing = true"
@@ -41,16 +41,11 @@
             @export-json="exportJSON"
           />
         </div>
-
-        <div v-if="isAnalyzing" class="mt-12 text-center">
-          <div class="inline-block animate-spin rounded-full h-8 w-8 border-2 border-black border-t-transparent"></div>
-          <p class="text-black mt-4 text-sm">Анализ файла...</p>
-        </div>
       </div>
     </div>
 
     <!-- Подвал -->
-    <footer class="w-full bg-white border-t-2 border-black mt-auto py-8">
+    <footer class="w-full bg-white border-t-2 border-black py-8 flex-shrink-0">
       <div class="max-w-5xl mx-auto text-center px-4">
         <p class="text-sm text-black">
           Проект создан в рамках конкурса «Антидипфейк: Вызов» международной олимпиады «IT-Планета 2026».

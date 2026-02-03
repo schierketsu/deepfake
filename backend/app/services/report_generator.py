@@ -98,7 +98,7 @@ class ReportGenerator:
                     summary["source"] = f"Кодек: {codec}"
                 else:
                     summary["source"] = "Неизвестно"
-        
+
         return summary
     
     def generate_json_report(self, report_data: Dict[str, Any]) -> str:
@@ -272,7 +272,7 @@ class ReportGenerator:
                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                 ]))
                 story.append(xmp_table)
-    
+
     def _add_video_metadata(self, story, metadata, styles):
         """Добавление метаданных видео в отчет"""
         container = metadata.get("container", {})
