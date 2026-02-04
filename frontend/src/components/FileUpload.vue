@@ -1,17 +1,16 @@
 <template>
   <div class="content-block border-2 border-black p-6">
-    <div class="flex flex-col sm:flex-row items-stretch gap-4 sm:gap-6">
-      <div
-        @drop="handleDrop"
-        @dragover.prevent
-        @dragenter.prevent
-        @dragleave="isDragging = false"
-        @dragenter="isDragging = true"
-        :class="[
-          'border-2 border-black p-8 text-center transition-colors cursor-pointer flex-1 sm:min-w-0',
-          isDragging ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'
-        ]"
-      >
+    <div
+      @drop="handleDrop"
+      @dragover.prevent
+      @dragenter.prevent
+      @dragleave="isDragging = false"
+      @dragenter="isDragging = true"
+      :class="[
+        'border-2 border-black p-8 text-center transition-colors cursor-pointer',
+        isDragging ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'
+      ]"
+    >
         <input
           ref="fileInput"
           type="file"
@@ -53,11 +52,6 @@
         </div>
       </div>
 
-      <div class="flex-shrink-0 flex items-end justify-center sm:justify-end bg-white pt-2 -mb-6 sm:-mb-6">
-        <img :src="demoImg" alt="Демо" class="max-h-48 sm:max-h-56 w-auto object-contain object-bottom" />
-      </div>
-    </div>
-
     <div v-if="error" class="mt-4 p-3 border-2 border-black bg-white">
       <p class="text-black text-xs">{{ error }}</p>
     </div>
@@ -67,14 +61,11 @@
 <script>
 import { analyzeImage, analyzeVideo } from '../services/api'
 
-const demoImg = new URL('../public/ddemo.png', import.meta.url).href
-
 export default {
   name: 'FileUpload',
   emits: ['file-uploaded', 'analysis-started', 'analysis-completed'],
   data() {
     return {
-      demoImg,
       selectedFile: null,
       isDragging: false,
       error: null,

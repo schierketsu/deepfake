@@ -122,6 +122,14 @@ async def analyze_image(file: UploadFile = File(...)):
                 ai_indicators=ai_indicators
             )
             
+            # Добавляем информацию о файле
+            file_size_mb = len(content) / (1024 * 1024)
+            report_data["file_info"] = {
+                "name": file.filename or "Неизвестно",
+                "size": len(content),
+                "size_formatted": f"{file_size_mb:.2f} MB" if file_size_mb >= 1 else f"{len(content) / 1024:.2f} KB"
+            }
+            
             # Генерация PDF отчета
             report_path = report_gen.generate_pdf_report(report_data, temp_file)
             report_time = time.time() - report_start
@@ -198,6 +206,14 @@ async def analyze_video(file: UploadFile = File(...)):
             metadata=metadata,
             ai_indicators=ai_indicators
         )
+        
+        # Добавляем информацию о файле
+        file_size_mb = len(content) / (1024 * 1024)
+        report_data["file_info"] = {
+            "name": file.filename or "Неизвестно",
+            "size": len(content),
+            "size_formatted": f"{file_size_mb:.2f} MB" if file_size_mb >= 1 else f"{len(content) / 1024:.2f} KB"
+        }
         
         # Генерация PDF отчета
         report_path = report_gen.generate_pdf_report(report_data, temp_file)

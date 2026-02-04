@@ -1233,7 +1233,6 @@ class ImageAnalyzer:
                     # Квадратное изображение - частый признак ИИ
                     if abs(aspect_ratio - 1.0) < 0.01:
                         characteristics["is_square"] = True
-                        characteristics["suspicious_features"].append("Квадратное изображение (типично для ИИ)")
                 
                 # Стандартные размеры для ИИ-генераторов
                 standard_ai_sizes = [

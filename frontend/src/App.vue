@@ -50,6 +50,9 @@
         <p class="text-sm text-black">
           Проект создан в рамках конкурса «Антидипфейк: Вызов» международной олимпиады «IT-Планета 2026».
         </p>
+        <p class="text-sm text-black mt-2">
+          team @öшкамöшка
+        </p>
       </div>
     </footer>
   </div>

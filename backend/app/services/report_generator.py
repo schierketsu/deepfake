@@ -116,107 +116,155 @@ class ReportGenerator:
         filename = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         filepath = os.path.join(self.reports_dir, filename)
         
-        doc = SimpleDocTemplate(filepath, pagesize=A4)
+        doc = SimpleDocTemplate(filepath, pagesize=A4, 
+                               leftMargin=0.75*inch, rightMargin=0.75*inch,
+                               topMargin=0.75*inch, bottomMargin=0.75*inch)
         story = []
         styles = getSampleStyleSheet()
         
-        # Заголовок
+        # Стили
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
-            fontSize=24,
-            textColor=colors.HexColor('#1a1a1a'),
-            spaceAfter=30,
-            alignment=TA_CENTER
-        )
-        story.append(Paragraph("Отчет анализа метаданных", title_style))
-        story.append(Spacer(1, 0.2*inch))
-        
-        # Резюме
-        summary = report_data.get("summary", {})
-        summary_style = ParagraphStyle(
-            'Summary',
-            parent=styles['Normal'],
-            fontSize=12,
-            spaceAfter=12
+            fontSize=20,
+            textColor=colors.HexColor('#000000'),
+            spaceAfter=20,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
         )
         
-        # Индикатор вероятности ИИ
-        ai_prob = summary.get("ai_probability", 0)
-        if ai_prob < 30:
-            ai_color = colors.green
-            ai_status = "Низкая вероятность ИИ"
-        elif ai_prob < 70:
-            ai_color = colors.orange
-            ai_status = "Средняя вероятность ИИ"
-        else:
-            ai_color = colors.red
-            ai_status = "Высокая вероятность ИИ"
-        
-        ai_style = ParagraphStyle(
-            'AIStatus',
-            parent=styles['Normal'],
+        heading_style = ParagraphStyle(
+            'SectionHeading',
+            parent=styles['Heading2'],
             fontSize=14,
-            textColor=ai_color,
-            spaceAfter=20
+            textColor=colors.HexColor('#000000'),
+            spaceAfter=12,
+            spaceBefore=16,
+            fontName='Helvetica-Bold'
         )
-        story.append(Paragraph(f"<b>Вероятность ИИ-вмешательства: {ai_prob}%</b>", ai_style))
-        story.append(Paragraph(f"<b>Статус:</b> {ai_status}", summary_style))
+        
+        normal_style = ParagraphStyle(
+            'NormalText',
+            parent=styles['Normal'],
+            fontSize=10,
+            textColor=colors.HexColor('#000000'),
+            spaceAfter=8,
+            leading=14
+        )
+        
+        # Заголовок
+        story.append(Paragraph("АНАЛИЗ МЕТАДАННЫХ", title_style))
+        story.append(Paragraph("Выявление ИИ-модификаций в изображениях и видео", 
+                              ParagraphStyle('Subtitle', parent=styles['Normal'], 
+                                           fontSize=11, alignment=TA_CENTER, 
+                                           textColor=colors.HexColor('#333333'),
+                                           spaceAfter=24)))
         story.append(Spacer(1, 0.1*inch))
         
-        # Основная информация
+        # Вероятность ИИ-вмешательства
+        ai_indicators = report_data.get("ai_indicators", {})
+        ai_prob = ai_indicators.get("ai_probability", 0)
+        
+        if ai_prob < 30:
+            ai_color = colors.HexColor('#22c55e')  # green
+            ai_status = "Низкая"
+        elif ai_prob < 70:
+            ai_color = colors.HexColor('#f59e0b')  # orange
+            ai_status = "Средняя"
+        else:
+            ai_color = colors.HexColor('#ef4444')  # red
+            ai_status = "Высокая"
+        
+        prob_style = ParagraphStyle(
+            'Probability',
+            parent=styles['Normal'],
+            fontSize=16,
+            textColor=ai_color,
+            spaceAfter=8,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
+        )
+        
+        story.append(Paragraph(f"<b>Вероятность ИИ-вмешательства: {ai_prob}%</b>", prob_style))
+        story.append(Paragraph(f"<b>Уровень:</b> {ai_status}", 
+                              ParagraphStyle('Status', parent=normal_style, 
+                                           alignment=TA_CENTER, fontSize=11)))
+        story.append(Spacer(1, 0.2*inch))
+        
+        # Информация о файле
+        story.append(Paragraph("<b>ИНФОРМАЦИЯ О ФАЙЛЕ</b>", heading_style))
+        
+        summary = report_data.get("summary", {})
+        file_info = report_data.get("file_info", {})
+        
         info_data = [
             ["Параметр", "Значение"],
-            ["Тип файла", report_data.get("file_type", "N/A")],
-            ["📍 Местоположение", summary.get("location") or "Не указано"],
-            ["🕒 Дата и время", summary.get("date_time") or "Не указано"],
-            ["📷 Источник", summary.get("source") or "Неизвестно"],
-            ["🎯 Достоверность", summary.get("confidence", "low")],
+            ["Тип файла", report_data.get("file_type", "N/A").upper()],
+            ["Название файла", file_info.get("name", "Не указано")],
+            ["Размер файла", file_info.get("size_formatted", "Не указано") if file_info.get("size") else "Не указано"],
+            ["Местоположение", summary.get("location") or "Не указано"],
+            ["Дата и время", summary.get("date_time") or "Не указано"],
+            ["Источник", summary.get("source") or "Неизвестно"],
         ]
         
-        info_table = Table(info_data, colWidths=[2*inch, 4*inch])
+        info_table = Table(info_data, colWidths=[2.2*inch, 4.3*inch])
         info_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#000000')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('TOPPADDING', (0, 0), (-1, 0), 10),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#000000')),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 1), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
         ]))
         story.append(info_table)
         story.append(Spacer(1, 0.3*inch))
         
+        # По фактам из метаданных
+        evidence = ai_indicators.get("evidence_from_metadata", [])
+        if evidence:
+            story.append(Paragraph("<b>ПО ФАКТАМ ИЗ МЕТАДАННЫХ</b>", heading_style))
+            for fact in evidence:
+                story.append(Paragraph(f"• {fact}", normal_style))
+            story.append(Spacer(1, 0.2*inch))
+        
         # Обнаруженные признаки ИИ
-        ai_indicators = report_data.get("ai_indicators", {})
-        story.append(Paragraph("<b>Обнаруженные признаки ИИ:</b>", styles['Heading2']))
+        story.append(Paragraph("<b>ОБНАРУЖЕННЫЕ ПРИЗНАКИ ИИ</b>", heading_style))
         
         software_detected = ai_indicators.get("software_detected", [])
         if software_detected:
-            story.append(Paragraph(f"<b>Обнаруженное ПО:</b> {', '.join(software_detected)}", styles['Normal']))
+            story.append(Paragraph(f"<b>Обнаруженное ПО:</b> {', '.join(software_detected)}", normal_style))
         else:
-            story.append(Paragraph("Обнаруженное ПО: Не обнаружено", styles['Normal']))
+            story.append(Paragraph("Обнаруженное ПО: Не обнаружено", normal_style))
         
         anomalies = ai_indicators.get("anomalies", [])
         if anomalies:
             story.append(Spacer(1, 0.1*inch))
-            story.append(Paragraph("<b>Аномалии:</b>", styles['Normal']))
+            story.append(Paragraph("<b>Аномалии и подозрительные признаки:</b>", normal_style))
             for anomaly in anomalies:
-                story.append(Paragraph(f"• {anomaly}", styles['Normal']))
+                story.append(Paragraph(f"• {anomaly}", normal_style))
+        else:
+            story.append(Paragraph("Аномалии: Не обнаружено", normal_style))
         
-        story.append(Spacer(1, 0.2*inch))
+        story.append(Spacer(1, 0.3*inch))
         
         # Детальные метаданные
         story.append(PageBreak())
-        story.append(Paragraph("<b>Детальные метаданные:</b>", styles['Heading2']))
+        story.append(Paragraph("<b>ДЕТАЛЬНЫЕ МЕТАДАННЫЕ</b>", heading_style))
         
         metadata = report_data.get("metadata", {})
         if report_data.get("file_type") == "image":
-            self._add_image_metadata(story, metadata, styles)
+            self._add_image_metadata(story, metadata, styles, normal_style, heading_style)
         else:
-            self._add_video_metadata(story, metadata, styles)
+            self._add_video_metadata(story, metadata, styles, normal_style, heading_style)
         
         # Футер
         story.append(Spacer(1, 0.3*inch))
@@ -224,107 +272,174 @@ class ReportGenerator:
             'Footer',
             parent=styles['Normal'],
             fontSize=8,
-            textColor=colors.grey,
+            textColor=colors.HexColor('#666666'),
             alignment=TA_CENTER
         )
+        generated_at = report_data.get('generated_at', '')
+        if generated_at:
+            try:
+                dt = datetime.fromisoformat(generated_at.replace('Z', '+00:00'))
+                formatted_date = dt.strftime('%d.%m.%Y %H:%M:%S')
+            except:
+                formatted_date = generated_at
+        else:
+            formatted_date = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
+        
         story.append(Paragraph(
-            f"Отчет сгенерирован: {report_data.get('generated_at', 'N/A')}",
+            f"Отчет сгенерирован: {formatted_date}",
             footer_style
         ))
         
         doc.build(story)
         return filepath
     
-    def _add_image_metadata(self, story, metadata, styles):
+    def _add_image_metadata(self, story, metadata, styles, normal_style, heading_style):
         """Добавление метаданных изображения в отчет"""
         exif = metadata.get("exif", {})
         xmp = metadata.get("xmp", {})
         
+        # Фильтруем служебные поля
+        skip_keys = {"error", "_c2pa_metadata", "_c2pa_manifest_types", "_c2pa_key_fields", "_c2pa_key_aliases"}
+        
         if exif:
-            story.append(Paragraph("<b>EXIF данные:</b>", styles['Heading3']))
-            exif_data = []
-            for key, value in exif.items():
-                if key != "error":
-                    exif_data.append([key, str(value)])
+            # Фильтруем только значимые поля
+            exif_filtered = {k: v for k, v in exif.items() 
+                           if k not in skip_keys and v is not None and str(v).strip()}
             
-            if exif_data:
-                exif_table = Table(exif_data, colWidths=[2*inch, 4*inch])
+            if exif_filtered:
+                story.append(Paragraph("<b>EXIF данные</b>", heading_style))
+                exif_data = [["Параметр", "Значение"]]
+                for key, value in sorted(exif_filtered.items()):
+                    value_str = str(value)
+                    # Ограничиваем длину для очень длинных значений
+                    if len(value_str) > 150:
+                        value_str = value_str[:147] + "..."
+                    exif_data.append([key, value_str])
+                
+                exif_table = Table(exif_data, colWidths=[2.2*inch, 4.3*inch])
                 exif_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f6')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#000000')),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 9),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                    ('TOPPADDING', (0, 0), (-1, 0), 8),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                    ('TOPPADDING', (0, 1), (-1, -1), 5),
+                    ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
                 ]))
                 story.append(exif_table)
-                story.append(Spacer(1, 0.2*inch))
+                story.append(Spacer(1, 0.25*inch))
         
         if xmp:
-            story.append(Paragraph("<b>XMP данные:</b>", styles['Heading3']))
-            xmp_data = []
-            for key, value in xmp.items():
-                if key != "error":
-                    xmp_data.append([key, str(value)[:100]])  # Ограничение длины
+            xmp_filtered = {k: v for k, v in xmp.items() 
+                          if k not in skip_keys and v is not None and str(v).strip()}
             
-            if xmp_data:
-                xmp_table = Table(xmp_data, colWidths=[2*inch, 4*inch])
+            if xmp_filtered:
+                story.append(Paragraph("<b>XMP данные</b>", heading_style))
+                xmp_data = [["Параметр", "Значение"]]
+                for key, value in sorted(xmp_filtered.items()):
+                    value_str = str(value)
+                    if len(value_str) > 150:
+                        value_str = value_str[:147] + "..."
+                    xmp_data.append([key, value_str])
+                
+                xmp_table = Table(xmp_data, colWidths=[2.2*inch, 4.3*inch])
                 xmp_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f6')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#000000')),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 9),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                    ('TOPPADDING', (0, 0), (-1, 0), 8),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                    ('TOPPADDING', (0, 1), (-1, -1), 5),
+                    ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
                 ]))
                 story.append(xmp_table)
 
-    def _add_video_metadata(self, story, metadata, styles):
+    def _add_video_metadata(self, story, metadata, styles, normal_style, heading_style):
         """Добавление метаданных видео в отчет"""
         container = metadata.get("container", {})
         video_stream = metadata.get("video_stream", {})
         audio_stream = metadata.get("audio_stream", {})
         
+        table_style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f6')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#000000')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('TOPPADDING', (0, 0), (-1, 0), 8),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 1), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
+        ])
+        
         if container:
-            story.append(Paragraph("<b>Метаданные контейнера:</b>", styles['Heading3']))
-            container_data = []
-            for key, value in container.items():
-                if value:
-                    container_data.append([key, str(value)])
-            
-            if container_data:
-                container_table = Table(container_data, colWidths=[2*inch, 4*inch])
-                container_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ]))
+            container_filtered = {k: v for k, v in container.items() 
+                                if v is not None and str(v).strip()}
+            if container_filtered:
+                story.append(Paragraph("<b>Метаданные контейнера</b>", heading_style))
+                container_data = [["Параметр", "Значение"]]
+                for key, value in sorted(container_filtered.items()):
+                    value_str = str(value)
+                    if len(value_str) > 150:
+                        value_str = value_str[:147] + "..."
+                    container_data.append([key, value_str])
+                
+                container_table = Table(container_data, colWidths=[2.2*inch, 4.3*inch])
+                container_table.setStyle(table_style)
                 story.append(container_table)
-                story.append(Spacer(1, 0.2*inch))
+                story.append(Spacer(1, 0.25*inch))
         
         if video_stream:
-            story.append(Paragraph("<b>Видео поток:</b>", styles['Heading3']))
-            video_data = []
-            for key, value in video_stream.items():
-                if value:
-                    video_data.append([key, str(value)])
-            
-            if video_data:
-                video_table = Table(video_data, colWidths=[2*inch, 4*inch])
-                video_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ]))
+            video_filtered = {k: v for k, v in video_stream.items() 
+                            if v is not None and str(v).strip()}
+            if video_filtered:
+                story.append(Paragraph("<b>Видео поток</b>", heading_style))
+                video_data = [["Параметр", "Значение"]]
+                for key, value in sorted(video_filtered.items()):
+                    value_str = str(value)
+                    if len(value_str) > 150:
+                        value_str = value_str[:147] + "..."
+                    video_data.append([key, value_str])
+                
+                video_table = Table(video_data, colWidths=[2.2*inch, 4.3*inch])
+                video_table.setStyle(table_style)
                 story.append(video_table)
-                story.append(Spacer(1, 0.2*inch))
+                story.append(Spacer(1, 0.25*inch))
         
         if audio_stream:
-            story.append(Paragraph("<b>Аудио поток:</b>", styles['Heading3']))
-            audio_data = []
-            for key, value in audio_stream.items():
-                if value:
-                    audio_data.append([key, str(value)])
-            
-            if audio_data:
-                audio_table = Table(audio_data, colWidths=[2*inch, 4*inch])
-                audio_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ]))
+            audio_filtered = {k: v for k, v in audio_stream.items() 
+                           if v is not None and str(v).strip()}
+            if audio_filtered:
+                story.append(Paragraph("<b>Аудио поток</b>", heading_style))
+                audio_data = [["Параметр", "Значение"]]
+                for key, value in sorted(audio_filtered.items()):
+                    value_str = str(value)
+                    if len(value_str) > 150:
+                        value_str = value_str[:147] + "..."
+                    audio_data.append([key, value_str])
+                
+                audio_table = Table(audio_data, colWidths=[2.2*inch, 4.3*inch])
+                audio_table.setStyle(table_style)
                 story.append(audio_table)
