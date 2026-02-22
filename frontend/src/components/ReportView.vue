@@ -1,146 +1,97 @@
 <template>
-  <div class="content-block rounded-lg border-[3px] border-black">
-    <!-- Заголовок отчета -->
-    <div class="rounded-t-lg border-b-[3px] border-black p-6 bg-white">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="title-report">РЕЗУЛЬТАТЫ АНАЛИЗА</h2>
-          <div v-if="fileInfo" class="mt-2">
-            <p class="text-xs font-medium text-black">{{ fileInfo.name }}</p>
-            <p class="text-xs text-gray-600">{{ formatFileSize(fileInfo.size) }}</p>
-          </div>
+  <div class="content-block p-6 md:p-8">
+    <div class="mb-8 flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <p class="soft-label mb-2">Шаг 2</p>
+        <h2 class="text-heading-xl md:text-display-lg font-black text-ink">Результаты анализа</h2>
+        <div v-if="fileInfo" class="mt-3 text-sm text-soft-700">
+          <p class="font-semibold text-ink break-words">{{ fileInfo.name }}</p>
+          <p>{{ formatFileSize(fileInfo.size) }}</p>
         </div>
-        <div class="text-right">
-          <div class="text-xs text-gray-600 mb-1">Тип файла</div>
-          <div class="title-report text-black">{{ result.file_type === 'document' ? 'Word документ' : result.file_type }}</div>
+      </div>
+      <div class="text-accent-300 text-4xl md:text-5xl font-black italic leading-none">
+        {{ result.file_type === 'document' ? 'Word документ' : result.file_type }}
+      </div>
+    </div>
+
+    <div class="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
+      <div class="card-soft relative min-h-[220px] overflow-hidden p-6 border-soft-700 bg-soft-900">
+        <p class="mb-4 text-sm md:text-base uppercase tracking-[0.08em] text-soft-300 font-black">Вероятность ИИ-вмешательства</p>
+        <div class="absolute inset-x-0 bottom-0 transition-all duration-500" :style="{ height: `${summary.ai_probability || 0}%`, backgroundColor: getProbabilityColor(summary.ai_probability || 0) }" />
+        <div class="relative z-10">
+          <p class="mb-2 text-lg md:text-xl font-black text-soft-100">{{ getProbabilityLabel(summary.ai_probability || 0) }}</p>
+          <p class="title-percent mt-8 text-soft-50 text-center text-[4.5rem] md:text-[5.5rem] italic">{{ summary.ai_probability || 0 }}%</p>
+        </div>
+      </div>
+
+      <div class="grid gap-4">
+        <div class="card-soft p-5">
+          <p class="soft-label mb-1">Местоположение</p>
+          <p class="text-body-lg text-ink">{{ summary.location || 'Не указано' }}</p>
+        </div>
+        <div class="card-soft p-5">
+          <p class="soft-label mb-1">Дата и время</p>
+          <p class="text-body-lg text-ink">{{ summary.date_time || 'Не указано' }}</p>
+        </div>
+        <div class="card-soft p-5">
+          <p class="soft-label mb-1">Источник</p>
+          <p class="text-body-lg text-ink break-words">{{ summary.source || 'Неизвестно' }}</p>
         </div>
       </div>
     </div>
 
-    <div class="p-8 bg-white">
-      <!-- Две колонки: слева — вероятность ИИ, справа — местоположение, дата, источник -->
-      <div class="flex flex-col md:flex-row gap-4 mb-10">
-        <!-- Левая колонка: главный индикатор вероятности ИИ -->
-        <div class="flex-1 min-w-0 rounded-lg border-[3px] border-black p-6 bg-white relative overflow-hidden min-h-[120px] flex items-center">
-          <!-- Цветной фон: заполнение снизу вверх -->
+    <div v-if="evidenceList.length > 0" class="mt-6 card-soft p-6">
+      <h3 class="text-heading-lg font-bold text-ink">Факты из метаданных</h3>
+      <p class="mt-1 text-sm text-soft-700">Вывод основан на C2PA/Content Credentials и цепочке доверия.</p>
+      <ul class="mt-4 space-y-3">
+        <li
+          v-for="(fact, index) in evidenceList"
+          :key="index"
+          class="rounded-2xl border border-soft-200 bg-soft-50 p-4"
+        >
+          <p class="mb-2 text-sm font-semibold text-soft-700">Факт {{ index + 1 }}</p>
+          <div class="space-y-2 text-sm text-ink">
+            <p v-for="(paragraph, pIndex) in formatFactText(fact)" :key="pIndex">{{ paragraph }}</p>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <div v-if="aiIndicators.software_detected.length > 0 || aiIndicators.anomalies.length > 0" class="mt-6 card-soft p-6">
+      <h3 class="text-heading-lg font-bold text-ink">Обнаруженные признаки ИИ</h3>
+
+      <div v-if="aiIndicators.software_detected.length > 0" class="mt-4">
+        <p class="soft-label mb-2">Обнаруженное ПО</p>
+        <div class="flex flex-wrap gap-2">
+          <span v-for="software in aiIndicators.software_detected" :key="software" class="status-chip bg-soft-900 text-soft-100">
+            {{ software }}
+          </span>
+        </div>
+      </div>
+
+      <div v-if="aiIndicators.anomalies.length > 0" class="mt-4">
+        <p class="soft-label mb-2">Аномалии</p>
+        <div class="space-y-2">
           <div
-            class="absolute bottom-0 left-0 right-0 transition-all duration-500"
-            :style="{
-              height: getVisualWidth(summary.ai_probability) + '%',
-              backgroundColor: getProbabilityColor(summary.ai_probability)
-            }"
-          ></div>
-          
-          <!-- Контент поверх фона; при 100% весь текст белый -->
-          <div class="relative z-10 w-full flex flex-col items-center text-center -mt-6">
-            <h3 class="title-sub mb-1" :class="summary.ai_probability >= 100 || summary.ai_probability > 50 ? 'text-white' : ''">
-              Вероятность ИИ-вмешательства
-            </h3>
-            <p class="title-sub mt-2" :class="summary.ai_probability >= 100 || summary.ai_probability > 50 ? 'text-white' : ''">{{ getProbabilityLabel(summary.ai_probability) }}</p>
-            <div
-              class="title-percent mt-3"
-              :style="summary.ai_probability >= 100 || summary.ai_probability > 50 ? { color: '#fff' } : {}"
-            >
-              {{ summary.ai_probability }}%
-            </div>
+            v-for="(anomaly, index) in aiIndicators.anomalies"
+            :key="index"
+            class="rounded-2xl border border-soft-200 bg-soft-50 p-3 text-sm text-ink"
+          >
+            {{ anomaly }}
           </div>
         </div>
+      </div>
+    </div>
 
-        <!-- Правая колонка: основная информация -->
-        <div class="flex flex-col gap-4 md:w-[280px] flex-shrink-0">
-          <div class="rounded-lg border-[3px] border-black p-5 bg-white">
-            <div class="mb-3">
-              <span class="text-xs text-gray-600 uppercase tracking-wide">Местоположение</span>
-            </div>
-            <p class="text-base text-black font-medium">{{ summary.location || 'Не указано' }}</p>
-          </div>
-          <div class="rounded-lg border-[3px] border-black p-5 bg-white">
-            <div class="mb-3">
-              <span class="text-xs text-gray-600 uppercase tracking-wide">Дата и время</span>
-            </div>
-            <p class="text-base text-black font-medium">{{ summary.date_time || 'Не указано' }}</p>
-          </div>
-          <div class="rounded-lg border-[3px] border-black p-5 bg-white">
-            <div class="mb-3">
-              <span class="text-xs text-gray-600 uppercase tracking-wide">Источник</span>
-            </div>
-            <p class="text-base text-black font-medium break-words">{{ summary.source || 'Неизвестно' }}</p>
-          </div>
-        </div>
-      </div>
-    
-      <!-- По фактам из метаданных (C2PA / Content Credentials) -->
-      <div v-if="evidenceList.length > 0" class="mb-10">
-        <div class="rounded-lg border-[3px] border-black p-6 bg-white">
-          <div class="mb-4">
-            <h3 class="text-xl font-bold text-black mb-2">По фактам из метаданных</h3>
-            <p class="text-xs text-gray-600">Вывод сделан на основе C2PA/Content Credentials и цепочки доверия, без интерпретаций.</p>
-          </div>
-          <ul class="space-y-3">
-            <li
-              v-for="(fact, index) in evidenceList"
-              :key="index"
-              class="flex items-start rounded-lg border-[3px] border-black p-4 bg-white"
-            >
-              <span class="inline-block w-6 h-6 rounded border-[3px] border-black bg-black text-white text-xs font-bold flex items-center justify-center mr-3 flex-shrink-0 mt-0.5">{{ index + 1 }}</span>
-              <div class="text-sm text-black leading-relaxed break-words">
-                <p v-for="(paragraph, pIndex) in formatFactText(fact)" :key="pIndex" class="mb-2 last:mb-0">
-                  {{ paragraph }}
-                </p>
-              </div>
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- Обнаруженные признаки ИИ -->
-      <div v-if="aiIndicators.software_detected.length > 0 || aiIndicators.anomalies.length > 0" class="mb-10">
-        <div class="rounded-lg border-[3px] border-black p-6 bg-white">
-          <div class="mb-4">
-            <h3 class="text-xl font-bold text-black">Обнаруженные признаки ИИ</h3>
-          </div>
-          
-          <div v-if="aiIndicators.software_detected.length > 0" class="mb-6">
-            <h4 class="text-sm font-semibold text-black mb-3 uppercase tracking-wide">
-              Обнаруженное ПО:
-            </h4>
-            <div class="flex flex-wrap gap-2">
-              <span
-                v-for="software in aiIndicators.software_detected"
-                :key="software"
-                class="px-4 py-2 rounded border-[3px] border-black bg-black text-white text-xs font-medium"
-              >
-                {{ software }}
-              </span>
-            </div>
-          </div>
-          
-          <div v-if="aiIndicators.anomalies.length > 0">
-            <h4 class="text-sm font-semibold text-black mb-3 uppercase tracking-wide">
-              Аномалии и подозрительные признаки:
-            </h4>
-            <div class="space-y-2">
-              <div
-                v-for="(anomaly, index) in aiIndicators.anomalies"
-                :key="index"
-                class="rounded-lg border-[3px] border-black p-3 bg-white flex items-start"
-              >
-                <span class="text-sm text-black">{{ anomaly }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Детальные метаданные (раскрывающийся блок) -->
-      <div class="mb-10">
+    <div class="mt-6">
+      <div class="card-soft overflow-hidden">
         <button
           @click="showMetadata = !showMetadata"
-          class="w-full rounded-lg border-[3px] border-black p-4 bg-white hover:bg-gray-50 transition-colors flex items-center justify-between text-left"
+          class="flex w-full items-center justify-between bg-white p-4 text-left"
         >
-          <h3 class="text-xl font-bold text-black">Детальные метаданные</h3>
+          <h3 class="text-heading-lg font-bold text-ink">Детальные метаданные</h3>
           <svg
-            class="h-5 w-5 text-black transition-transform"
+            class="h-5 w-5 text-ink transition-transform duration-200"
             :class="{ 'rotate-180': showMetadata }"
             fill="none"
             viewBox="0 0 24 24"
@@ -150,30 +101,15 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        <div
-          v-show="showMetadata"
-          class="rounded-b-lg border-x-[3px] border-b-[3px] border-black p-6 bg-white"
-        >
+        <div v-show="showMetadata" class="border-t border-soft-200 bg-soft-50 p-5">
           <MetadataTable :metadata="result.metadata" :file-type="result.file_type" />
         </div>
       </div>
-      
-      <!-- Кнопки экспорта -->
-      <div class="flex flex-wrap gap-4 pt-6 border-t-[3px] border-black">
-        <button
-          @click="handleExportPDF"
-          class="px-6 py-3 rounded-lg border-[3px] border-black bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
-        >
-          ЭКСПОРТ PDF
-        </button>
-        
-        <button
-          @click="handleExportJSON"
-          class="px-6 py-3 rounded-lg border-[3px] border-black bg-white text-black text-sm font-medium hover:bg-gray-50 transition-colors"
-        >
-          ЭКСПОРТ JSON
-        </button>
-      </div>
+    </div>
+
+    <div class="mt-6 grid gap-3 md:grid-cols-2">
+      <button @click="handleExportPDF" class="primary-btn w-full">Экспорт PDF</button>
+      <button @click="handleExportJSON" class="secondary-btn w-full">Экспорт JSON</button>
     </div>
   </div>
 </template>
@@ -226,74 +162,24 @@ export default {
       return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
     },
     getProbabilityLabel(probability) {
-      if (probability < 30) return 'Низкая'
-      if (probability < 70) return 'Средняя'
-      return 'Высокая'
+      if (probability < 30) return 'Низкая вероятность'
+      if (probability < 70) return 'Средняя вероятность'
+      return 'Высокая вероятность'
     },
-    
     getProbabilityColor(probability) {
-      if (probability <= 20) return '#7AFC50' // зеленый
-      if (probability <= 50) return '#FFEB3C' // желтый
-      return '#DC2626' // красный
+      if (probability <= 20) return 'rgba(47, 147, 230, 0.22)'
+      if (probability <= 50) return 'rgba(47, 147, 230, 0.35)'
+      return 'rgba(47, 147, 230, 0.5)'
     },
-    
-    getVisualWidth(probability) {
-      // При 100% — шкала заполнена полностью; при 90% — визуально 87%
-      if (probability >= 100) return 100
-      if (probability >= 90) return 87
-      return probability
-    },
-    
     formatFactText(text) {
-      // Разбиваем длинный текст на параграфы по точкам и двоеточиям
       if (!text) return []
-      
-      // Разбиваем по точкам, но сохраняем структуру
-      const sentences = text.split(/\.\s+/).filter(s => s.trim())
-      const paragraphs = []
-      let currentParagraph = ''
-      
-      for (let i = 0; i < sentences.length; i++) {
-        const sentence = sentences[i].trim()
-        if (!sentence) continue
-        
-        // Если предложение очень длинное (более 150 символов), разбиваем его
-        if (sentence.length > 150) {
-          if (currentParagraph) {
-            paragraphs.push(currentParagraph.trim() + '.')
-            currentParagraph = ''
-          }
-          // Разбиваем длинное предложение по запятым или двоеточиям
-          const parts = sentence.split(/[,:]\s+/)
-          if (parts.length > 1) {
-            paragraphs.push(parts[0] + ':')
-            paragraphs.push(parts.slice(1).join(', '))
-          } else {
-            paragraphs.push(sentence)
-          }
-        } else {
-          currentParagraph += (currentParagraph ? '. ' : '') + sentence
-          // Если накопили достаточно текста или это последнее предложение
-          if (currentParagraph.length > 200 || i === sentences.length - 1) {
-            paragraphs.push(currentParagraph.trim() + (i === sentences.length - 1 ? '' : '.'))
-            currentParagraph = ''
-          }
-        }
-      }
-      
-      if (currentParagraph) {
-        paragraphs.push(currentParagraph.trim() + '.')
-      }
-      
-      return paragraphs.length > 0 ? paragraphs : [text]
+      return text.split(/\.\s+/).filter(Boolean)
     },
-    
     handleExportPDF() {
       const reportUrl = getReport(this.result.report_url)
       window.open(reportUrl, '_blank')
       this.$emit('export-pdf', reportUrl)
     },
-    
     handleExportJSON() {
       this.$emit('export-json', this.result)
     }

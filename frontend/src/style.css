@@ -1,10 +1,33 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+@font-face {
+  font-family: 'PF Centro Sans Pro';
+  src:
+    local('PF Centro Sans Pro Medium'),
+    local('PFCentroSansPro-Medium'),
+    url('./public/pf-centro-sans-pro/PFCentroSansPro-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
 
 @font-face {
-  font-family: 'Fredoka One';
-  src: url('./public/FredokaOne-Regular.ttf') format('truetype');
-  font-weight: normal;
+  font-family: 'PF Centro Sans Pro';
+  src:
+    local('PF Centro Sans Pro Black'),
+    local('PFCentroSansPro-Black'),
+    url('./public/pf-centro-sans-pro/PFCentroSansPro-Black.otf') format('opentype');
+  font-weight: 900;
   font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PF Centro Sans Pro';
+  src:
+    local('PF Centro Sans Pro Black Italic'),
+    local('PFCentroSansPro-UBlackItalic'),
+    url('./public/pf-centro-sans-pro/PFCentroSansPro-UBlackItalic.otf') format('opentype');
+  font-weight: 900;
+  font-style: italic;
   font-display: swap;
 }
 
@@ -12,169 +35,67 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Фон: косая штриховка в одну сторону (~5 линий в квадрате) + точки */
-#app {
-  min-height: 100vh;
-  background-color: #f5f5f5;
-  background-image:
-    radial-gradient(circle, #333 1px, transparent 1px),
-    repeating-linear-gradient(
-      -45deg,
-      transparent 0,
-      transparent 4px,
-      rgba(0, 0, 0, 0.07) 4px,
-      rgba(0, 0, 0, 0.07) 5px
-    );
-  background-size: 24px 24px, 7.07px 7.07px;
-  background-position: 0 0, 0 0;
-}
-
-/* Убираем точки внутри контентных блоков */
-.content-block {
-  background-color: #fff;
-}
-
-/* Шапка на всю ширину с белым фоном */
-header {
-  background-color: #fff !important;
-  background-image: none !important;
-  position: relative;
-  z-index: 10;
-}
-
-/* Стиль заголовка главной страницы (крупный) */
-.title-main {
-  font-family: 'Inter', sans-serif !important;
-  font-size: 3.5rem;
-  line-height: 4rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  color: rgb(10, 10, 10);
-  display: inline-block;
-  -webkit-font-smoothing: antialiased;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Крупный процент вероятности ИИ */
-.title-percent {
-  font-family: 'Inter', sans-serif !important;
-  font-size: 4.5rem;
-  line-height: 1.1;
-  font-weight: 900;
-  text-transform: uppercase;
-  color: rgb(10, 10, 10);
-  -webkit-font-smoothing: antialiased;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Подзаголовок в шапке (как заголовок, но меньше) */
-.title-sub {
-  font-family: 'Inter', sans-serif !important;
-  font-size: 1.25rem;
-  line-height: 1.75rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  color: rgb(10, 10, 10);
-  display: inline-block;
-  -webkit-font-smoothing: antialiased;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Тот же стиль, белый текст (для кнопок на тёмном фоне) */
-.title-sub-white {
-  font-family: 'Inter', sans-serif !important;
-  font-size: 1.25rem;
-  line-height: 1.75rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  color: #fff;
-  -webkit-font-smoothing: antialiased;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Заголовок в отчёте (прежний размер) */
-.title-report {
-  font-family: 'Inter', sans-serif !important;
-  font-size: 1.875rem;
-  line-height: 2.25rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  color: rgb(10, 10, 10);
-  display: inline-block;
-  -webkit-font-smoothing: antialiased;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Кнопка-иконка в шапке (GitHub и др.) */
-.footer-icon-btn {
-  width: 3.09rem;
-  height: 3.09rem;
-  background-color: #82CAFF;
-  color: #000;
-  border: 3px solid #000;
-  box-shadow: 5px 5px 0 0 #000;
-  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
-}
-.footer-icon-btn:hover {
-  background-color: #6bb8f0;
-  box-shadow: 0 0 0 0 #000;
-  transform: translate(5px, 5px);
-}
-.footer-icon-btn-email {
-  background-color: #fff;
-  box-shadow: 5px 5px 0 0 #6b7280;
-  width: 92px;
-  height: 92px;
-}
-.footer-icon-btn-email .footer-icon-btn-img {
-  width: 2.875rem;
-  height: 2.875rem;
-}
-.footer-icon-btn-email:hover {
-  background-color: #f0f0f0;
-  box-shadow: 0 0 0 0 #6b7280;
-  transform: translate(5px, 5px);
-}
-.footer-icon-btn-img {
-  width: 1.55rem;
-  height: 1.55rem;
-}
-@media (min-width: 640px) {
-  .footer-icon-btn {
-    width: 3.71rem;
-    height: 3.71rem;
+@layer base {
+  * {
+    @apply border-soft-200;
   }
-  .footer-icon-btn-img {
-    width: 1.85rem;
-    height: 1.85rem;
+
+  html,
+  body,
+  #app {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    @apply bg-paper text-ink antialiased font-sans;
+    background-image:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.06) 100%),
+      radial-gradient(circle at 10% 10%, rgba(47, 147, 230, 0.12), transparent 42%);
   }
 }
-@media (min-width: 768px) {
-  .footer-icon-btn {
-    width: 4.95rem;
-    height: 4.95rem;
+
+@layer components {
+  .app-shell {
+    @apply min-h-screen bg-paper flex flex-col;
   }
-  .footer-icon-btn-img {
-    width: 2.5rem;
-    height: 2.5rem;
+
+  .content-block {
+    @apply rounded-3xl border border-soft-300 bg-soft-50 shadow-soft;
   }
-}
-@media (min-width: 1024px) {
-  .footer-icon-btn {
-    width: 92px;
-    height: 92px;
+
+  .card-soft {
+    @apply rounded-2xl border border-soft-300 bg-soft-100 shadow-soft;
   }
-  .footer-icon-btn-email .footer-icon-btn-img {
-    width: 2.875rem;
-    height: 2.875rem;
+
+  .soft-label {
+    @apply text-xs uppercase tracking-[0.08em] text-soft-600 font-medium;
+  }
+
+  .soft-title {
+    @apply font-display text-heading-xl md:text-display-lg font-black text-ink;
+    letter-spacing: -0.02em;
+  }
+
+  .soft-subtitle {
+    @apply text-soft-800 text-body-lg font-medium;
+  }
+
+  .title-percent {
+    @apply font-display text-display-xl md:text-[4rem] font-black text-ink;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .primary-btn {
+    @apply inline-flex items-center justify-center rounded-2xl bg-ink px-6 py-3 text-sm font-semibold text-white shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:bg-soft-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2;
+  }
+
+  .secondary-btn {
+    @apply inline-flex items-center justify-center rounded-2xl border border-soft-200 bg-white px-6 py-3 text-sm font-semibold text-ink shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:bg-soft-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2;
+  }
+
+  .status-chip {
+    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
   }
 }

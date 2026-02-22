@@ -1,129 +1,162 @@
 <template>
-  <div class="content-block rounded-lg border-[3px] border-black p-6">
+  <div class="content-block p-6 md:p-8">
+    <div class="mb-4 flex items-center justify-between gap-4">
+      <div>
+        <p class="soft-label mb-2">Шаг 1</p>
+        <h2 class="text-heading-xl font-bold text-ink">Загрузка файла</h2>
+      </div>
+    </div>
+
     <div
+      @click="openFileDialog"
       @drop="handleDrop"
       @dragover.prevent
       @dragenter.prevent
       @dragleave="isDragging = false"
       @dragenter="isDragging = true"
       :class="[
-        'rounded-lg border-[3px] border-black p-8 text-center transition-colors cursor-pointer',
-        isDragging ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'
+        'rounded-3xl border p-8 text-center transition-all duration-200 cursor-pointer',
+        isDragging ? 'border-accent-400 bg-accent-100 shadow-soft-lg' : 'border-soft-300 bg-soft-100 hover:bg-soft-50'
       ]"
+      role="button"
+      tabindex="0"
+      @keydown.enter.prevent="openFileDialog"
+      @keydown.space.prevent="openFileDialog"
     >
-        <input
-          ref="fileInput"
-          type="file"
-          @change="handleFileSelect"
-          accept="image/jpeg,image/jpg,image/png,image/heic,image/heif,video/mp4,video/quicktime,video/x-matroska,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          class="hidden"
-        />
+      <input
+        ref="fileInput"
+        type="file"
+        @change="handleFileSelect"
+        accept="image/jpeg,image/jpg,image/png,image/heic,image/heif,video/mp4,video/quicktime,video/x-matroska,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        class="hidden"
+      />
 
-        <div class="flex flex-col items-center gap-4">
-          <p class="title-sub">
-            Перетащите файл сюда или нажмите для выбора
-          </p>
-          <div class="flex items-center justify-center gap-3 flex-wrap">
-            <span class="title-sub text-base normal-case">изображение | видео | </span>
-            <img :src="logopptxUrl" alt="PPTX" class="h-10 w-auto object-contain" />
-            <img :src="logowordUrl" alt="Word" class="h-10 w-auto object-contain" />
-          </div>
-          <button
-            @click="$refs.fileInput.click()"
-            class="title-sub-white px-6 py-3 rounded-lg border-[3px] border-black bg-black hover:bg-gray-800 transition-colors"
-          >
-            ВЫБРАТЬ ФАЙЛ
-          </button>
+      <div class="mx-auto flex max-w-2xl flex-col items-center gap-4">
+        <div class="rounded-2xl bg-soft-900 px-4 py-2 text-sm font-semibold text-accent-300 shadow-soft">
+          JPEG, PNG, HEIC, MP4, MOV, MKV, DOCX
         </div>
+        <p class="text-heading-lg font-semibold text-ink">
+          Перетащите файл сюда или нажмите для выбора
+        </p>
+        <button
+          type="button"
+          @click.stop="openFileDialog"
+          class="primary-btn mt-1"
+          :disabled="isAnalyzing"
+        >
+          Выбрать файл
+        </button>
       </div>
+    </div>
 
-    <div v-if="error" class="mt-4 p-3 rounded-lg border-[3px] border-black bg-white">
-      <p class="text-black text-xs">{{ error }}</p>
+    <div v-if="effectiveError" class="mt-5 rounded-2xl border border-danger/40 bg-danger/10 p-4">
+      <p class="text-sm text-ink">{{ effectiveError }}</p>
+      <button type="button" class="secondary-btn mt-3" @click="openFileDialog">Выбрать другой файл</button>
     </div>
   </div>
 </template>
 
 <script>
 import { analyzeImage, analyzeVideo, analyzeDocument } from '../services/api'
-import logopptxUrl from '../public/logopptx.png'
-import logowordUrl from '../public/logoword.png'
 
 export default {
   name: 'FileUpload',
-  emits: ['file-uploaded', 'analysis-started', 'analysis-completed'],
+  props: {
+    isAnalyzing: {
+      type: Boolean,
+      default: false
+    },
+    progress: {
+      type: Number,
+      default: 0
+    },
+    errorMessage: {
+      type: String,
+      default: null
+    }
+  },
+  emits: ['file-uploaded', 'analysis-started', 'analysis-completed', 'analysis-progress', 'analysis-error', 'analysis-reset'],
   data() {
     return {
-      logopptxUrl,
-      logowordUrl,
       selectedFile: null,
       isDragging: false,
       error: null,
       uploadProgress: 0,
-      MAX_FILE_SIZE: 100 * 1024 * 1024 // 100MB
+      MAX_FILE_SIZE: 100 * 1024 * 1024
+    }
+  },
+  computed: {
+    safeProgress() {
+      return Math.min(100, Math.max(this.progress || this.uploadProgress, 0))
+    },
+    effectiveError() {
+      return this.error || this.errorMessage
     }
   },
   methods: {
+    openFileDialog() {
+      this.$refs.fileInput?.click()
+    },
     handleDrop(event) {
       event.preventDefault()
       this.isDragging = false
-      
+
       const files = event.dataTransfer.files
       if (files.length > 0) {
         this.processFile(files[0])
       }
     },
-    
+
     handleFileSelect(event) {
       const files = event.target.files
       if (files.length > 0) {
         this.processFile(files[0])
       }
     },
-    
+
     processFile(file) {
       this.error = null
       this.uploadProgress = 0
-      
-      // Валидация размера
+      this.$emit('analysis-reset')
+
       if (file.size > this.MAX_FILE_SIZE) {
         this.error = `Файл слишком большой. Максимальный размер: ${this.formatFileSize(this.MAX_FILE_SIZE)}`
+        this.$emit('analysis-error', this.error)
         return
       }
-      
-      // Валидация типа
+
       const isImage = file.type.startsWith('image/')
       const isVideo = file.type.startsWith('video/')
       const isDocx = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || (file.name && file.name.toLowerCase().endsWith('.docx'))
-      
+
       if (!isImage && !isVideo && !isDocx) {
-        this.error = 'Неподдерживаемый тип файла. Используйте изображения (JPEG, PNG, HEIC), видео (MP4, MOV, MKV) или Word (.docx)'
+        this.error = 'Неподдерживаемый тип файла. Используйте изображения, видео или Word (.docx).'
+        this.$emit('analysis-error', this.error)
         return
       }
-      
+
       this.selectedFile = file
       this.analyzeFile(file)
     },
-    
+
     async analyzeFile(file) {
       this.$emit('analysis-started')
-      this.uploadProgress = 10
-      
+      this.setProgress(8)
+      this.$emit('analysis-error', null)
+
       try {
         let result
-        
+        this.setProgress(24)
+
         if (file.type.startsWith('image/')) {
-          this.uploadProgress = 30
           result = await analyzeImage(file)
         } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || (file.name && file.name.toLowerCase().endsWith('.docx'))) {
-          this.uploadProgress = 30
           result = await analyzeDocument(file)
         } else {
-          this.uploadProgress = 30
           result = await analyzeVideo(file)
         }
-        
-        this.uploadProgress = 100
-        // Передаем результат анализа вместе с информацией о файле
+
+        this.setProgress(100)
         this.$emit('file-uploaded', {
           ...result,
           fileInfo: {
@@ -131,33 +164,43 @@ export default {
             size: file.size
           }
         })
-        this.$emit('analysis-completed')
-        
       } catch (error) {
-        console.error('Ошибка анализа:', error)
+        const status = error.response?.status
         const detail = error.response?.data?.detail
-        this.error = typeof detail === 'string'
-          ? detail
-          : Array.isArray(detail)
-            ? (detail[0]?.msg || detail[0] || 'Произошла ошибка при анализе файла')
-            : 'Произошла ошибка при анализе файла'
-        this.$emit('analysis-completed')
+        if (!error.response) {
+          this.error = 'Сервер недоступен. Проверьте запуск backend на 127.0.0.1:8000.'
+        } else if (status === 404) {
+          this.error = 'Эндпоинт анализа документа не найден (404). Проверьте, что backend обновлен и маршрут /api/analyze/document доступен.'
+        } else if (status === 413) {
+          this.error = 'Файл превышает допустимый размер на сервере.'
+        } else {
+          this.error = typeof detail === 'string'
+            ? detail
+            : Array.isArray(detail)
+              ? (detail[0]?.msg || detail[0] || 'Произошла ошибка при анализе файла')
+              : 'Произошла ошибка при анализе файла'
+        }
+        this.$emit('analysis-error', this.error)
       } finally {
-        setTimeout(() => {
-          this.uploadProgress = 0
-        }, 1000)
+        this.$emit('analysis-completed')
       }
     },
-    
+
+    setProgress(value) {
+      this.uploadProgress = value
+      this.$emit('analysis-progress', value)
+    },
+
     clearFile() {
       this.selectedFile = null
       this.error = null
       this.uploadProgress = 0
+      this.$emit('analysis-reset')
       if (this.$refs.fileInput) {
         this.$refs.fileInput.value = ''
       }
     },
-    
+
     formatFileSize(bytes) {
       if (bytes === 0) return '0 Bytes'
       const k = 1024

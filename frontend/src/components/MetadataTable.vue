@@ -1,233 +1,62 @@
 <template>
-  <div class="space-y-6">
-    <!-- Результаты анализа Word-документа: список изображений -->
+  <div class="space-y-4">
     <template v-if="fileType === 'document'">
-      <div class="rounded-lg border-[3px] border-black overflow-hidden">
-        <div class="border-b-[3px] border-black px-5 py-3 bg-white">
-          <h4 class="font-bold text-black text-sm uppercase tracking-wide">
-            Изображения в документе
-          </h4>
-          <p class="text-xs text-gray-600 mt-1">
-            Всего: {{ metadata.images_count || 0 }}, с признаками ИИ: {{ metadata.images_with_ai_count || 0 }}
-          </p>
+      <div class="card-soft p-5">
+        <h4 class="text-heading-lg font-bold text-ink">Изображения в документе</h4>
+        <p class="mt-1 text-sm text-soft-700">
+          Всего: {{ metadata.images_count || 0 }}, с признаками ИИ: {{ metadata.images_with_ai_count || 0 }}
+        </p>
+      </div>
+
+      <div v-if="(metadata.images || []).length === 0" class="card-soft p-5 text-sm text-soft-700">
+        В документе не найдено извлеченных изображений.
+      </div>
+
+      <div
+        v-for="(img, index) in (metadata.images || [])"
+        :key="`doc-image-${index}`"
+        class="card-soft p-5"
+      >
+        <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <p class="font-semibold text-ink break-words">{{ index + 1 }}. {{ img.filename || 'Без имени' }}</p>
+          <span class="status-chip bg-soft-900 text-accent-300">
+            ИИ: {{ (img.ai_indicators && img.ai_indicators.ai_probability) ?? 0 }}%
+          </span>
         </div>
-        <div class="divide-y divide-black divide-[3px]">
+
+        <p v-if="img.ai_indicators && img.ai_indicators.software_detected && img.ai_indicators.software_detected.length" class="text-sm text-soft-700">
+          ПО: {{ img.ai_indicators.software_detected.join(', ') }}
+        </p>
+        <ul v-if="img.ai_indicators && img.ai_indicators.anomalies && img.ai_indicators.anomalies.length" class="mt-2 list-disc space-y-1 pl-5 text-sm text-soft-700">
+          <li v-for="(anom, ai) in img.ai_indicators.anomalies" :key="ai">{{ anom }}</li>
+        </ul>
+      </div>
+    </template>
+
+    <template v-else>
+      <div
+        v-for="section in sections"
+        :key="section.title"
+        class="card-soft overflow-hidden"
+      >
+        <div class="border-b border-soft-300 bg-soft-100 px-4 py-3">
+          <h4 class="font-semibold text-ink">{{ section.title }}</h4>
+        </div>
+        <div v-if="section.rows.length > 0" class="divide-y divide-soft-200 bg-soft-50">
           <div
-            v-for="(img, index) in (metadata.images || [])"
-            :key="index"
-            class="px-5 py-4 bg-white"
+            v-for="(row, idx) in section.rows"
+            :key="`${section.title}-${idx}`"
+            class="grid gap-2 px-4 py-3 md:grid-cols-[220px_1fr]"
           >
-            <div class="font-medium text-black text-sm mb-2">
-              {{ index + 1 }}. {{ img.filename }}
-            </div>
-            <div class="text-xs text-black space-y-1">
-              <p>
-                <span class="font-semibold">Вероятность ИИ:</span>
-                {{ (img.ai_indicators && img.ai_indicators.ai_probability) ?? 0 }}%
-              </p>
-              <p v-if="img.ai_indicators && img.ai_indicators.software_detected && img.ai_indicators.software_detected.length">
-                <span class="font-semibold">ПО:</span>
-                {{ img.ai_indicators.software_detected.join(', ') }}
-              </p>
-              <ul v-if="img.ai_indicators && img.ai_indicators.anomalies && img.ai_indicators.anomalies.length" class="list-disc pl-4 mt-1">
-                <li v-for="(anom, ai) in img.ai_indicators.anomalies" :key="ai">{{ anom }}</li>
-              </ul>
-            </div>
+            <div class="text-sm font-semibold text-soft-700">{{ row.key }}</div>
+            <div class="break-words font-mono text-sm text-ink">{{ row.value }}</div>
           </div>
         </div>
-      </div>
-    </template>
-
-    <!-- Группированные метаданные (если доступны) -->
-    <div v-else-if="hasGroupedMetadata" class="space-y-6">
-      <div 
-        v-for="(sectionData, sectionName) in groupedMetadata" 
-        :key="sectionName"
-        class="rounded-lg border-[3px] border-black overflow-hidden"
-      >
-        <div class="border-b-[3px] border-black px-5 py-3 bg-white">
-          <h4 class="font-bold text-black text-sm uppercase tracking-wide">
-            {{ sectionName }}
-          </h4>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full">
-            <tbody class="bg-white">
-              <tr 
-                v-for="(item, index) in sectionData" 
-                :key="`${sectionName}-${index}`"
-                class="border-b-[3px] border-black last:border-b-0"
-              >
-                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-[3px] border-black">
-                  {{ formatGroupedKey(item) }}
-                </td>
-                <td class="px-5 py-3 text-xs text-black break-words">
-                  <span class="font-mono">{{ formatGroupedValue(item) }}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Старый формат (fallback) -->
-    <template v-else-if="!hasGroupedMetadata">
-      <!-- EXIF данные для изображений -->
-      <div v-if="fileType === 'image'" class="rounded-lg border-[3px] border-black overflow-hidden">
-        <div class="border-b-[3px] border-black px-5 py-3 bg-white">
-          <h4 class="font-bold text-black text-sm uppercase tracking-wide">EXIF данные</h4>
-        </div>
-        <div v-if="hasExifData" class="overflow-x-auto">
-          <table class="min-w-full">
-            <tbody class="bg-white">
-              <tr v-for="(value, key) in filteredExifData" :key="key" class="border-b-[3px] border-black last:border-b-0">
-                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-[3px] border-black">
-                  {{ formatKey(key) }}
-                </td>
-                <td class="px-5 py-3 text-xs text-black">
-                  <span class="font-mono">{{ formatValue(value, key) }}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div v-else class="px-6 py-10 text-center bg-white border-t-[3px] border-black">
-          <p class="text-sm text-black mb-1">EXIF метаданные отсутствуют</p>
-          <p class="text-xs text-gray-600">Это может указывать на то, что изображение было обработано или создано с помощью ИИ</p>
-        </div>
-      </div>
-
-      <!-- XMP данные для изображений -->
-      <div v-if="fileType === 'image'" class="rounded-lg border-[3px] border-black overflow-hidden">
-        <div class="border-b-[3px] border-black px-5 py-3 bg-white">
-          <h4 class="font-bold text-black text-sm uppercase tracking-wide">XMP данные</h4>
-        </div>
-        <div v-if="hasXmpData" class="overflow-x-auto">
-          <table class="min-w-full">
-            <tbody class="bg-white">
-              <tr v-for="(value, key) in filteredXmpData" :key="key" class="border-b-[3px] border-black last:border-b-0">
-                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-[3px] border-black">
-                  {{ formatKey(key) }}
-                </td>
-                <td class="px-5 py-3 text-xs text-black break-words">
-                  <span class="font-mono">{{ formatValue(value, key) }}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div v-else class="px-6 py-10 text-center bg-white border-t-[3px] border-black">
-          <p class="text-sm text-black mb-1">XMP метаданные отсутствуют</p>
-          <p class="text-xs text-gray-600">XMP данные обычно содержат информацию о редактировании изображения</p>
+        <div v-else class="px-4 py-6 text-sm text-soft-700 bg-soft-50">
+          Данные в этой секции отсутствуют.
         </div>
       </div>
     </template>
-
-    <!-- Метаданные контейнера для видео -->
-    <div v-if="fileType === 'video' && metadata.container" class="rounded-lg border-[3px] border-black overflow-hidden mb-6">
-      <div class="border-b-[3px] border-black px-5 py-3 bg-white">
-        <h4 class="font-bold text-black text-sm uppercase tracking-wide">Метаданные контейнера</h4>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="min-w-full">
-            <tbody class="bg-white">
-              <tr v-for="(value, key) in metadata.container" :key="key" v-if="value" class="border-b-[3px] border-black last:border-b-0">
-                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-[3px] border-black">
-                  {{ formatKey(key) }}
-                </td>
-                <td class="px-5 py-3 text-xs text-black">
-                  <span class="font-mono">{{ formatValue(value, key) }}</span>
-                </td>
-              </tr>
-            </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Видео поток -->
-    <div v-if="fileType === 'video' && metadata.video_stream" class="rounded-lg border-[3px] border-black overflow-hidden mb-6">
-      <div class="border-b-[3px] border-black px-5 py-3 bg-white">
-        <h4 class="font-bold text-black text-sm uppercase tracking-wide">Видео поток</h4>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="min-w-full">
-            <tbody class="bg-white">
-              <tr v-for="(value, key) in metadata.video_stream" :key="key" v-if="value" class="border-b-[3px] border-black last:border-b-0">
-                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-[3px] border-black">
-                  {{ formatKey(key) }}
-                </td>
-                <td class="px-5 py-3 text-xs text-black">
-                  <span class="font-mono">{{ formatValue(value, key) }}</span>
-                </td>
-              </tr>
-            </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Аудио поток -->
-    <div v-if="fileType === 'video' && metadata.audio_stream" class="rounded-lg border-[3px] border-black overflow-hidden mb-6">
-      <div class="border-b-[3px] border-black px-5 py-3 bg-white">
-        <h4 class="font-bold text-black text-sm uppercase tracking-wide">Аудио поток</h4>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="min-w-full">
-            <tbody class="bg-white">
-              <tr v-for="(value, key) in metadata.audio_stream" :key="key" v-if="value" class="border-b-[3px] border-black last:border-b-0">
-                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-[3px] border-black">
-                  {{ formatKey(key) }}
-                </td>
-                <td class="px-5 py-3 text-xs text-black">
-                  <span class="font-mono">{{ formatValue(value, key) }}</span>
-                </td>
-              </tr>
-            </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Информация о кодировании для видео -->
-    <div v-if="fileType === 'video' && metadata.encoding_info" class="rounded-lg border-[3px] border-black overflow-hidden mb-6">
-      <div class="border-b-[3px] border-black px-5 py-3 bg-white">
-        <h4 class="font-bold text-black text-sm uppercase tracking-wide">Информация о кодировании</h4>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="min-w-full">
-            <tbody class="bg-white">
-              <tr v-for="(value, key) in metadata.encoding_info" :key="key" class="border-b-[3px] border-black last:border-b-0">
-                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-[3px] border-black">
-                  {{ formatKey(key) }}
-                </td>
-                <td class="px-5 py-3 text-xs text-black" :class="getSuspiciousClass(key, value)">
-                  <span class="font-mono">{{ formatValue(value, key) }}</span>
-                </td>
-              </tr>
-            </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Характеристики изображения -->
-    <div v-if="fileType === 'image' && metadata.image_characteristics" class="rounded-lg border-[3px] border-black overflow-hidden mb-6">
-      <div class="border-b-[3px] border-black px-5 py-3 bg-white">
-        <h4 class="font-bold text-black text-sm uppercase tracking-wide">Характеристики изображения</h4>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="min-w-full">
-            <tbody class="bg-white">
-              <tr v-for="(value, key) in filteredImageCharacteristics" :key="key" class="border-b-[3px] border-black last:border-b-0">
-                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-[3px] border-black">
-                  {{ formatKey(key) }}
-                </td>
-                <td class="px-5 py-3 text-xs text-black" :class="getImageCharClass(key, value)">
-                  <span class="font-mono">{{ formatImageCharValue(value, key) }}</span>
-                </td>
-              </tr>
-            </tbody>
-        </table>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -246,225 +75,151 @@ export default {
   },
   computed: {
     groupedMetadata() {
-      // Проверяем наличие сгруппированных метаданных из exiftool
-      if (this.metadata.exif && this.metadata.exif._grouped_metadata) {
-        const grouped = this.metadata.exif._grouped_metadata
-        // Проверяем, что это объект и в нем есть данные
-        if (typeof grouped === 'object' && grouped !== null) {
-          // Фильтруем только секции с данными
-          const filtered = {}
-          for (const [sectionName, sectionData] of Object.entries(grouped)) {
-            // Проверяем, что это массив и в нем есть элементы
-            if (Array.isArray(sectionData) && sectionData.length > 0) {
-              filtered[sectionName] = sectionData
-            }
-          }
-          const result = Object.keys(filtered).length > 0 ? filtered : null
-          return result
+      if (!this.metadata.exif || !this.metadata.exif._grouped_metadata) return null
+      const grouped = this.metadata.exif._grouped_metadata
+      if (typeof grouped !== 'object' || grouped === null) return null
+
+      const filtered = {}
+      for (const [sectionName, sectionData] of Object.entries(grouped)) {
+        if (Array.isArray(sectionData) && sectionData.length > 0) {
+          filtered[sectionName] = sectionData
         }
       }
-      return null
+      return Object.keys(filtered).length ? filtered : null
     },
-    hasGroupedMetadata() {
-      const grouped = this.groupedMetadata
-      return grouped !== null && grouped !== undefined && Object.keys(grouped).length > 0
+    sections() {
+      if (this.fileType === 'video') {
+        return [
+          this.buildSection('Метаданные контейнера', this.metadata.container),
+          this.buildSection('Видео поток', this.metadata.video_stream),
+          this.buildSection('Аудио поток', this.metadata.audio_stream),
+          this.buildSection('Информация о кодировании', this.metadata.encoding_info),
+        ].filter(Boolean)
+      }
+
+      if (this.fileType === 'image' && this.groupedMetadata) {
+        return Object.entries(this.groupedMetadata).map(([sectionName, sectionData]) => {
+          const rows = sectionData.map((item) => ({
+            key: this.formatGroupedKey(item),
+            value: this.formatGroupedValue(item),
+          }))
+          return { title: sectionName, rows }
+        })
+      }
+
+      if (this.fileType === 'image') {
+        return [
+          this.buildSection('EXIF данные', this.filteredExifData),
+          this.buildSection('XMP данные', this.filteredXmpData),
+          this.buildSection('Характеристики изображения', this.filteredImageCharacteristics),
+        ].filter(Boolean)
+      }
+
+      return []
     },
     filteredExifData() {
-      if (!this.metadata.exif) return {}
-      const filtered = {}
-      for (const [key, value] of Object.entries(this.metadata.exif)) {
-        // Пропускаем служебные поля
-        if (key !== 'error' && !key.startsWith('_') && value !== null && value !== undefined && value !== '') {
-          filtered[key] = value
-        }
-      }
-      return filtered
-    },
-    hasExifData() {
-      return Object.keys(this.filteredExifData).length > 0
+      return this.filterObject(this.metadata.exif, (key, value) => key !== 'error' && !key.startsWith('_') && this.hasValue(value))
     },
     filteredXmpData() {
-      if (!this.metadata.xmp) return {}
-      const filtered = {}
-      for (const [key, value] of Object.entries(this.metadata.xmp)) {
-        if (key !== 'error' && value !== null && value !== undefined && value !== '') {
-          filtered[key] = value
-        }
-      }
-      return filtered
-    },
-    hasXmpData() {
-      return Object.keys(this.filteredXmpData).length > 0
+      return this.filterObject(this.metadata.xmp, (key, value) => key !== 'error' && this.hasValue(value))
     },
     filteredImageCharacteristics() {
-      if (!this.metadata.image_characteristics) return {}
-      const filtered = {}
       const excludeKeys = ['suspicious_features', 'error']
-      for (const [key, value] of Object.entries(this.metadata.image_characteristics)) {
-        if (!excludeKeys.includes(key) && value !== null && value !== undefined) {
-          filtered[key] = value
-        }
-      }
-      return filtered
+      return this.filterObject(this.metadata.image_characteristics, (key, value) => !excludeKeys.includes(key) && this.hasValue(value))
     }
   },
   methods: {
+    buildSection(title, source) {
+      if (!source || typeof source !== 'object') return null
+      const rows = Object.entries(source).map(([key, value]) => ({
+        key: this.formatKey(key),
+        value: this.formatValue(value, key)
+      }))
+      return { title, rows }
+    },
+    filterObject(obj, predicate) {
+      if (!obj || typeof obj !== 'object') return {}
+      const filtered = {}
+      for (const [key, value] of Object.entries(obj)) {
+        if (predicate(key, value)) {
+          filtered[key] = value
+        }
+      }
+      return filtered
+    },
+    hasValue(value) {
+      return value !== null && value !== undefined && value !== ''
+    },
     formatKey(key) {
-      // Преобразование различных форматов ключей в читаемый формат
-      let formatted = key
-        // Заменяем подчеркивания на пробелы
+      let formatted = String(key)
         .replace(/_/g, ' ')
-        // Добавляем пробелы перед заглавными буквами
         .replace(/([A-Z])/g, ' $1')
-        // Убираем лишние пробелы
         .replace(/\s+/g, ' ')
         .trim()
-      
-      // Капитализируем первую букву
+
       if (formatted.length > 0) {
         formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1)
       }
-      
       return formatted
     },
-    
     formatGroupedKey(item) {
-      // Обработка группированных данных (массив [key, value] или объект)
       let rawKey = ''
       if (Array.isArray(item) && item.length >= 2) {
         rawKey = item[0]
       } else if (typeof item === 'object' && item !== null) {
         const keys = Object.keys(item)
         if (keys.length > 0) rawKey = keys[0]
-      } else {
-        return String(item)
       }
-      // Показываем только имя тега (после последнего ":"), чтобы не дублировать имя секции
       if (typeof rawKey === 'string' && rawKey.includes(':')) {
         rawKey = rawKey.split(':').pop().trim() || rawKey
       }
-      return this.formatKey(rawKey)
+      return this.formatKey(rawKey || 'Параметр')
     },
-    
     formatGroupedValue(item) {
-      // Обработка группированных данных (массив [key, value] или объект)
-      let key, value
-      
       if (Array.isArray(item) && item.length >= 2) {
-        key = item[0]
-        value = item[1]
-      } else if (typeof item === 'object' && item !== null) {
+        return this.formatValue(item[1], item[0])
+      }
+      if (typeof item === 'object' && item !== null) {
         const keys = Object.keys(item)
         if (keys.length > 0) {
-          key = keys[0]
-          value = item[key]
+          const key = keys[0]
+          return this.formatValue(item[key], key)
         }
-      } else {
-        return String(item)
       }
-      
-      return this.formatValue(value, key)
+      return 'N/A'
     },
-    
     formatValue(value, key) {
-      if (value === null || value === undefined) {
-        return 'N/A'
-      }
-      
-      // Обработка массивов
+      if (value === null || value === undefined) return 'N/A'
+
       if (Array.isArray(value)) {
-        return value.map(v => this.formatValue(v, key)).join(', ')
+        return value.map((v) => this.formatValue(v, key)).join(', ')
       }
-      
+
       if (typeof value === 'object') {
-        // Для объектов показываем JSON, но ограничиваем длину
-        const jsonStr = JSON.stringify(value, null, 2)
-        if (jsonStr.length > 200) {
-          return jsonStr.substring(0, 200) + '...'
-        }
-        return jsonStr
+        const json = JSON.stringify(value)
+        return json.length > 300 ? json.substring(0, 300) + '...' : json
       }
-      
-      const valueStr = String(value)
-      
-      // Обработка бинарных данных
-      if (valueStr.includes('Binary data') || valueStr.includes('bytes')) {
-        return valueStr
-      }
-      
-      // Форматирование специальных значений
+
       if (key === 'duration' && typeof value === 'string') {
         const seconds = parseFloat(value)
-        if (!isNaN(seconds)) {
+        if (!Number.isNaN(seconds)) {
           const minutes = Math.floor(seconds / 60)
           const secs = Math.floor(seconds % 60)
           return `${minutes}:${secs.toString().padStart(2, '0')}`
         }
       }
-      
+
       if (key === 'bit_rate' && typeof value === 'string') {
-        const bits = parseInt(value)
-        if (!isNaN(bits)) {
-          if (bits >= 1000000) {
-            return `${(bits / 1000000).toFixed(2)} Mbps`
-          } else if (bits >= 1000) {
-            return `${(bits / 1000).toFixed(2)} Kbps`
-          }
+        const bits = parseInt(value, 10)
+        if (!Number.isNaN(bits)) {
+          if (bits >= 1000000) return `${(bits / 1000000).toFixed(2)} Mbps`
+          if (bits >= 1000) return `${(bits / 1000).toFixed(2)} Kbps`
           return `${bits} bps`
         }
       }
-      
-      // Ограничение длины длинных строк
-      if (valueStr.length > 500) {
-        return valueStr.substring(0, 500) + '...'
-      }
-      
-      return valueStr
-    },
-    
-    getSuspiciousClass(key, value) {
-      // Выделение подозрительных полей
-      if (key === 'suspicious' && value === true) {
-        return 'font-semibold'
-      }
-      if (key === 'ai_indicators' && Array.isArray(value) && value.length > 0) {
-        return 'font-semibold'
-      }
-      return ''
-    },
-    
-    formatImageCharValue(value, key) {
-      if (value === null || value === undefined) {
-        return 'N/A'
-      }
-      
-      // Булевы значения
-      if (typeof value === 'boolean') {
-        return value ? 'Да' : 'Нет'
-      }
-      
-      // Размеры изображения
-      if (key === 'width' || key === 'height') {
-        return `${value} px`
-      }
-      
-      // Соотношение сторон
-      if (key === 'aspect_ratio') {
-        return value.toFixed(2)
-      }
-      
-      return String(value)
-    },
-    
-    getImageCharClass(key, value) {
-      // Выделение подозрительных характеристик
-      if (key === 'is_square' && value === true) {
-        return 'font-medium'
-      }
-      if (key === 'is_standard_ai_size' && value === true) {
-        return 'font-semibold'
-      }
-      return ''
+
+      const text = String(value)
+      return text.length > 500 ? text.substring(0, 500) + '...' : text
     }
   }
 }

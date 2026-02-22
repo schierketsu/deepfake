@@ -10,7 +10,7 @@ from app.services.image_analyzer import ImageAnalyzer
 from app.services.video_analyzer import VideoAnalyzer
 from app.services.ai_detector import AIDetector
 from app.services.document_analyzer import DocumentAnalyzer
-from app.services.report_generator import ReportGenerator
+from app.services.report_generator import ReportGenerator, REPORTS_DIR
 from app.models.schemas import AnalysisResponse, Summary, AIMetadata
 
 logger = logging.getLogger(__name__)
@@ -257,6 +257,7 @@ async def analyze_video(file: UploadFile = File(...)):
 
 
 @router.post("/analyze/document", response_model=AnalysisResponse)
+@router.post("/analyze/document/", response_model=AnalysisResponse)
 async def analyze_document(file: UploadFile = File(...)):
     """
     Анализ документа Word (.docx): извлечение всех изображений и проверка каждого на признаки ИИ.
@@ -355,6 +356,11 @@ async def analyze_document(file: UploadFile = File(...)):
             report_gen = ReportGenerator()
             report_path = report_gen.generate_pdf_report(report_data, temp_file)
 
+        report_filename = os.path.basename(report_path)
+        if not os.path.exists(report_path):
+            logger.error("PDF отчёт не создан: %s", report_path)
+            raise HTTPException(status_code=500, detail="Не удалось создать PDF-отчёт")
+
         return AnalysisResponse(
             file_type="document",
             summary=summary,
@@ -365,7 +371,7 @@ async def analyze_document(file: UploadFile = File(...)):
                 anomalies=report_data["ai_indicators"].get("anomalies", []),
                 evidence_from_metadata=report_data["ai_indicators"].get("evidence_from_metadata") or [],
             ),
-            report_url=f"/api/reports/{os.path.basename(report_path)}",
+            report_url=f"/api/reports/{report_filename}",
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -380,10 +386,10 @@ async def analyze_document(file: UploadFile = File(...)):
 @router.get("/reports/{report_filename}")
 async def get_report(report_filename: str):
     """Получение PDF отчета"""
-    reports_dir = os.path.join(tempfile.gettempdir(), "deepfake_reports")
-    report_path = os.path.join(reports_dir, report_filename)
+    report_path = os.path.join(REPORTS_DIR, report_filename)
     
     if not os.path.exists(report_path):
+        logger.warning("Отчёт не найден: %s (каталог: %s)", report_path, REPORTS_DIR)
         raise HTTPException(status_code=404, detail="Отчет не найден")
     
     return FileResponse(

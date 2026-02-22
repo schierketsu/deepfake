@@ -10,11 +10,14 @@ import tempfile
 from typing import Dict, Any, Optional
 from datetime import datetime
 
+# Единая папка для PDF-отчётов (используется и в routes.get_report)
+REPORTS_DIR = os.path.join(tempfile.gettempdir(), "deepfake_reports")
+
 class ReportGenerator:
     """Генератор отчетов в различных форматах"""
     
     def __init__(self):
-        self.reports_dir = os.path.join(tempfile.gettempdir(), "deepfake_reports")
+        self.reports_dir = REPORTS_DIR
         os.makedirs(self.reports_dir, exist_ok=True)
     
     def format_analysis_result(
@@ -127,7 +130,7 @@ class ReportGenerator:
             'CustomTitle',
             parent=styles['Heading1'],
             fontSize=20,
-            textColor=colors.HexColor('#000000'),
+            textColor=colors.HexColor('#262626'),
             spaceAfter=20,
             alignment=TA_CENTER,
             fontName='Helvetica-Bold'
@@ -137,7 +140,7 @@ class ReportGenerator:
             'SectionHeading',
             parent=styles['Heading2'],
             fontSize=14,
-            textColor=colors.HexColor('#000000'),
+            textColor=colors.HexColor('#262626'),
             spaceAfter=12,
             spaceBefore=16,
             fontName='Helvetica-Bold'
@@ -147,7 +150,7 @@ class ReportGenerator:
             'NormalText',
             parent=styles['Normal'],
             fontSize=10,
-            textColor=colors.HexColor('#000000'),
+            textColor=colors.HexColor('#262626'),
             spaceAfter=8,
             leading=14
         )
@@ -209,15 +212,15 @@ class ReportGenerator:
         
         info_table = Table(info_data, colWidths=[2.2*inch, 4.3*inch])
         info_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#000000')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#262626')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#E9E9E9')),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
             ('TOPPADDING', (0, 0), (-1, 0), 10),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#000000')),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#E9E9E9')),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#262626')),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('FONTSIZE', (0, 1), (-1, -1), 9),
             ('LEFTPADDING', (0, 0), (-1, -1), 8),
@@ -321,13 +324,13 @@ class ReportGenerator:
                 exif_table = Table(exif_data, colWidths=[2.2*inch, 4.3*inch])
                 exif_table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f6')),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#000000')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#262626')),
                     ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                     ('FONTSIZE', (0, 0), (-1, 0), 9),
                     ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
                     ('TOPPADDING', (0, 0), (-1, 0), 8),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#E9E9E9')),
                     ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                     ('FONTSIZE', (0, 1), (-1, -1), 8),
@@ -355,13 +358,13 @@ class ReportGenerator:
                 xmp_table = Table(xmp_data, colWidths=[2.2*inch, 4.3*inch])
                 xmp_table.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f6')),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#000000')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#262626')),
                     ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                     ('FONTSIZE', (0, 0), (-1, 0), 9),
                     ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
                     ('TOPPADDING', (0, 0), (-1, 0), 8),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#E9E9E9')),
                     ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                     ('FONTSIZE', (0, 1), (-1, -1), 8),
@@ -380,13 +383,13 @@ class ReportGenerator:
         
         table_style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f6')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#000000')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#262626')),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 9),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
             ('TOPPADDING', (0, 0), (-1, 0), 8),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#E9E9E9')),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('FONTSIZE', (0, 1), (-1, -1), 8),

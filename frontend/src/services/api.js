@@ -1,7 +1,7 @@
 import axios from 'axios'
 
-// Бэкенд по умолчанию на порту 8000 (для dev и сборки без VITE_API_URL)
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// Бэкенд: 127.0.0.1:8000 как в логе uvicorn (localhost на Windows иногда даёт 404)
+const API_BASE_URL = import.meta.env.VITE_API_URL?.trim() || (import.meta.env.DEV ? 'http://127.0.0.1:8000' : 'http://127.0.0.1:8000')
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -10,6 +10,18 @@ const api = axios.create({
     'Content-Type': 'multipart/form-data'
   }
 })
+
+// При 404 показываем, куда ушёл запрос (для отладки)
+api.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    if (err.response?.status === 404 && err.config) {
+      const url = err.config.baseURL + err.config.url
+      console.warn('[API] 404 по адресу:', url)
+    }
+    return Promise.reject(err)
+  }
+)
 
 export const analyzeImage = async (file) => {
   const formData = new FormData()
@@ -41,13 +53,24 @@ export const analyzeDocument = async (file) => {
   const formData = new FormData()
   formData.append('file', file)
   
-  const response = await api.post('/api/analyze/document', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
+  try {
+    const response = await api.post('/api/analyze/document', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return response.data
+  } catch (error) {
+    if (error.response?.status === 404) {
+      const fallbackResponse = await api.post('/api/analyze/document/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+      return fallbackResponse.data
     }
-  })
-  
-  return response.data
+    throw error
+  }
 }
 
 export const getReport = (reportUrl) => {
