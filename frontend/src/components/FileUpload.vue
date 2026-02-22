@@ -1,5 +1,5 @@
 <template>
-  <div class="content-block border-2 border-black p-6">
+  <div class="content-block border-[3px] border-black p-6">
     <div
       @drop="handleDrop"
       @dragover.prevent
@@ -7,7 +7,7 @@
       @dragleave="isDragging = false"
       @dragenter="isDragging = true"
       :class="[
-        'border-2 border-black p-8 text-center transition-colors cursor-pointer',
+        'border-[3px] border-black p-8 text-center transition-colors cursor-pointer',
         isDragging ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'
       ]"
     >
@@ -45,14 +45,14 @@
 
           <button
             @click="$refs.fileInput.click()"
-            class="px-6 py-3 border-2 border-black bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+            class="px-6 py-3 border-[3px] border-black bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
           >
             ВЫБРАТЬ ФАЙЛ
           </button>
         </div>
       </div>
 
-    <div v-if="error" class="mt-4 p-3 border-2 border-black bg-white">
+    <div v-if="error" class="mt-4 p-3 border-[3px] border-black bg-white">
       <p class="text-black text-xs">{{ error }}</p>
     </div>
   </div>

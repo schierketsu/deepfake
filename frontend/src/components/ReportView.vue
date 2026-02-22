@@ -1,7 +1,7 @@
 <template>
-  <div class="content-block border-2 border-black">
+  <div class="content-block border-[3px] border-black">
     <!-- Заголовок отчета -->
-    <div class="border-b-2 border-black p-6 bg-white">
+    <div class="border-b-[3px] border-black p-6 bg-white">
       <div class="flex items-center justify-between">
         <div>
           <h2 class="title-report">РЕЗУЛЬТАТЫ АНАЛИЗА</h2>
@@ -19,7 +19,7 @@
 
     <div class="p-8 bg-white">
       <!-- Главный индикатор вероятности ИИ -->
-      <div class="mb-10 border-2 border-black p-6 bg-white relative overflow-hidden min-h-[120px] flex items-center">
+      <div class="mb-10 border-[3px] border-black p-6 bg-white relative overflow-hidden min-h-[120px] flex items-center">
         <!-- Цветной фон: при 100% — без косой линии, при меньших — косая правая сторона -->
         <div
           class="absolute inset-y-0 left-0 transition-all duration-500"
@@ -53,21 +53,21 @@
 
       <!-- Основная информация -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-        <div class="border-2 border-black p-5 bg-white">
+        <div class="border-[3px] border-black p-5 bg-white">
           <div class="mb-3">
             <span class="text-xs text-gray-600 uppercase tracking-wide">Местоположение</span>
           </div>
           <p class="text-base text-black font-medium">{{ summary.location || 'Не указано' }}</p>
         </div>
         
-        <div class="border-2 border-black p-5 bg-white">
+        <div class="border-[3px] border-black p-5 bg-white">
           <div class="mb-3">
             <span class="text-xs text-gray-600 uppercase tracking-wide">Дата и время</span>
           </div>
           <p class="text-base text-black font-medium">{{ summary.date_time || 'Не указано' }}</p>
         </div>
         
-        <div class="border-2 border-black p-5 bg-white">
+        <div class="border-[3px] border-black p-5 bg-white">
           <div class="mb-3">
             <span class="text-xs text-gray-600 uppercase tracking-wide">Источник</span>
           </div>
@@ -77,7 +77,7 @@
     
       <!-- По фактам из метаданных (C2PA / Content Credentials) -->
       <div v-if="evidenceList.length > 0" class="mb-10">
-        <div class="border-2 border-black p-6 bg-white">
+        <div class="border-[3px] border-black p-6 bg-white">
           <div class="mb-4">
             <h3 class="text-xl font-bold text-black mb-2">По фактам из метаданных</h3>
             <p class="text-xs text-gray-600">Вывод сделан на основе C2PA/Content Credentials и цепочки доверия, без интерпретаций.</p>
@@ -86,9 +86,9 @@
             <li
               v-for="(fact, index) in evidenceList"
               :key="index"
-              class="flex items-start border-2 border-black p-4 bg-white"
+              class="flex items-start border-[3px] border-black p-4 bg-white"
             >
-              <span class="inline-block w-6 h-6 border-2 border-black bg-black text-white text-xs font-bold flex items-center justify-center mr-3 flex-shrink-0 mt-0.5">{{ index + 1 }}</span>
+              <span class="inline-block w-6 h-6 border-[3px] border-black bg-black text-white text-xs font-bold flex items-center justify-center mr-3 flex-shrink-0 mt-0.5">{{ index + 1 }}</span>
               <div class="text-sm text-black leading-relaxed break-words">
                 <p v-for="(paragraph, pIndex) in formatFactText(fact)" :key="pIndex" class="mb-2 last:mb-0">
                   {{ paragraph }}
@@ -101,7 +101,7 @@
 
       <!-- Обнаруженные признаки ИИ -->
       <div v-if="aiIndicators.software_detected.length > 0 || aiIndicators.anomalies.length > 0" class="mb-10">
-        <div class="border-2 border-black p-6 bg-white">
+        <div class="border-[3px] border-black p-6 bg-white">
           <div class="mb-4">
             <h3 class="text-xl font-bold text-black">Обнаруженные признаки ИИ</h3>
           </div>
@@ -114,7 +114,7 @@
               <span
                 v-for="software in aiIndicators.software_detected"
                 :key="software"
-                class="px-4 py-2 border-2 border-black bg-black text-white text-xs font-medium"
+                class="px-4 py-2 border-[3px] border-black bg-black text-white text-xs font-medium"
               >
                 {{ software }}
               </span>
@@ -129,7 +129,7 @@
               <div
                 v-for="(anomaly, index) in aiIndicators.anomalies"
                 :key="index"
-                class="border-2 border-black p-3 bg-white flex items-start"
+                class="border-[3px] border-black p-3 bg-white flex items-start"
               >
                 <span class="text-sm text-black">{{ anomaly }}</span>
               </div>
@@ -142,7 +142,7 @@
       <div class="mb-10">
         <button
           @click="showMetadata = !showMetadata"
-          class="w-full border-2 border-black p-4 bg-white hover:bg-gray-50 transition-colors flex items-center justify-between text-left"
+          class="w-full border-[3px] border-black p-4 bg-white hover:bg-gray-50 transition-colors flex items-center justify-between text-left"
         >
           <h3 class="text-xl font-bold text-black">Детальные метаданные</h3>
           <svg
@@ -158,24 +158,24 @@
         </button>
         <div
           v-show="showMetadata"
-          class="border-x-2 border-b-2 border-black p-6 bg-white"
+          class="border-x-[3px] border-b-[3px] border-black p-6 bg-white"
         >
           <MetadataTable :metadata="result.metadata" :file-type="result.file_type" />
         </div>
       </div>
       
       <!-- Кнопки экспорта -->
-      <div class="flex flex-wrap gap-4 pt-6 border-t-2 border-black">
+      <div class="flex flex-wrap gap-4 pt-6 border-t-[3px] border-black">
         <button
           @click="handleExportPDF"
-          class="px-6 py-3 border-2 border-black bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+          class="px-6 py-3 border-[3px] border-black bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
         >
           ЭКСПОРТ PDF
         </button>
         
         <button
           @click="handleExportJSON"
-          class="px-6 py-3 border-2 border-black bg-white text-black text-sm font-medium hover:bg-gray-50 transition-colors"
+          class="px-6 py-3 border-[3px] border-black bg-white text-black text-sm font-medium hover:bg-gray-50 transition-colors"
         >
           ЭКСПОРТ JSON
         </button>

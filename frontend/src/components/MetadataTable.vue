@@ -5,9 +5,9 @@
       <div 
         v-for="(sectionData, sectionName) in groupedMetadata" 
         :key="sectionName"
-        class="border-2 border-black overflow-hidden"
+        class="border-[3px] border-black overflow-hidden"
       >
-        <div class="border-b-2 border-black px-5 py-3 bg-white">
+        <div class="border-b-[3px] border-black px-5 py-3 bg-white">
           <h4 class="font-bold text-black text-sm uppercase tracking-wide">
             {{ sectionName }}
           </h4>
@@ -18,9 +18,9 @@
               <tr 
                 v-for="(item, index) in sectionData" 
                 :key="`${sectionName}-${index}`"
-                class="border-b-2 border-black last:border-b-0"
+                class="border-b-[3px] border-black last:border-b-0"
               >
-                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-2 border-black">
+                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-[3px] border-black">
                   {{ formatGroupedKey(item) }}
                 </td>
                 <td class="px-5 py-3 text-xs text-black break-words">
@@ -36,15 +36,15 @@
     <!-- Старый формат (fallback) -->
     <template v-else>
       <!-- EXIF данные для изображений -->
-      <div v-if="fileType === 'image'" class="border-2 border-black overflow-hidden">
-        <div class="border-b-2 border-black px-5 py-3 bg-white">
+      <div v-if="fileType === 'image'" class="border-[3px] border-black overflow-hidden">
+        <div class="border-b-[3px] border-black px-5 py-3 bg-white">
           <h4 class="font-bold text-black text-sm uppercase tracking-wide">EXIF данные</h4>
         </div>
         <div v-if="hasExifData" class="overflow-x-auto">
           <table class="min-w-full">
             <tbody class="bg-white">
-              <tr v-for="(value, key) in filteredExifData" :key="key" class="border-b-2 border-black last:border-b-0">
-                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-2 border-black">
+              <tr v-for="(value, key) in filteredExifData" :key="key" class="border-b-[3px] border-black last:border-b-0">
+                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-[3px] border-black">
                   {{ formatKey(key) }}
                 </td>
                 <td class="px-5 py-3 text-xs text-black">
@@ -54,22 +54,22 @@
             </tbody>
           </table>
         </div>
-        <div v-else class="px-6 py-10 text-center bg-white border-t-2 border-black">
+        <div v-else class="px-6 py-10 text-center bg-white border-t-[3px] border-black">
           <p class="text-sm text-black mb-1">EXIF метаданные отсутствуют</p>
           <p class="text-xs text-gray-600">Это может указывать на то, что изображение было обработано или создано с помощью ИИ</p>
         </div>
       </div>
 
       <!-- XMP данные для изображений -->
-      <div v-if="fileType === 'image'" class="border-2 border-black overflow-hidden">
-        <div class="border-b-2 border-black px-5 py-3 bg-white">
+      <div v-if="fileType === 'image'" class="border-[3px] border-black overflow-hidden">
+        <div class="border-b-[3px] border-black px-5 py-3 bg-white">
           <h4 class="font-bold text-black text-sm uppercase tracking-wide">XMP данные</h4>
         </div>
         <div v-if="hasXmpData" class="overflow-x-auto">
           <table class="min-w-full">
             <tbody class="bg-white">
-              <tr v-for="(value, key) in filteredXmpData" :key="key" class="border-b-2 border-black last:border-b-0">
-                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-2 border-black">
+              <tr v-for="(value, key) in filteredXmpData" :key="key" class="border-b-[3px] border-black last:border-b-0">
+                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-[3px] border-black">
                   {{ formatKey(key) }}
                 </td>
                 <td class="px-5 py-3 text-xs text-black break-words">
@@ -79,7 +79,7 @@
             </tbody>
           </table>
         </div>
-        <div v-else class="px-6 py-10 text-center bg-white border-t-2 border-black">
+        <div v-else class="px-6 py-10 text-center bg-white border-t-[3px] border-black">
           <p class="text-sm text-black mb-1">XMP метаданные отсутствуют</p>
           <p class="text-xs text-gray-600">XMP данные обычно содержат информацию о редактировании изображения</p>
         </div>
@@ -87,15 +87,15 @@
     </template>
 
     <!-- Метаданные контейнера для видео -->
-    <div v-if="fileType === 'video' && metadata.container" class="border-2 border-black overflow-hidden mb-6">
-      <div class="border-b-2 border-black px-5 py-3 bg-white">
+    <div v-if="fileType === 'video' && metadata.container" class="border-[3px] border-black overflow-hidden mb-6">
+      <div class="border-b-[3px] border-black px-5 py-3 bg-white">
         <h4 class="font-bold text-black text-sm uppercase tracking-wide">Метаданные контейнера</h4>
       </div>
       <div class="overflow-x-auto">
         <table class="min-w-full">
             <tbody class="bg-white">
-              <tr v-for="(value, key) in metadata.container" :key="key" v-if="value" class="border-b-2 border-black last:border-b-0">
-                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-2 border-black">
+              <tr v-for="(value, key) in metadata.container" :key="key" v-if="value" class="border-b-[3px] border-black last:border-b-0">
+                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-[3px] border-black">
                   {{ formatKey(key) }}
                 </td>
                 <td class="px-5 py-3 text-xs text-black">
@@ -108,15 +108,15 @@
     </div>
 
     <!-- Видео поток -->
-    <div v-if="fileType === 'video' && metadata.video_stream" class="border-2 border-black overflow-hidden mb-6">
-      <div class="border-b-2 border-black px-5 py-3 bg-white">
+    <div v-if="fileType === 'video' && metadata.video_stream" class="border-[3px] border-black overflow-hidden mb-6">
+      <div class="border-b-[3px] border-black px-5 py-3 bg-white">
         <h4 class="font-bold text-black text-sm uppercase tracking-wide">Видео поток</h4>
       </div>
       <div class="overflow-x-auto">
         <table class="min-w-full">
             <tbody class="bg-white">
-              <tr v-for="(value, key) in metadata.video_stream" :key="key" v-if="value" class="border-b-2 border-black last:border-b-0">
-                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-2 border-black">
+              <tr v-for="(value, key) in metadata.video_stream" :key="key" v-if="value" class="border-b-[3px] border-black last:border-b-0">
+                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-[3px] border-black">
                   {{ formatKey(key) }}
                 </td>
                 <td class="px-5 py-3 text-xs text-black">
@@ -129,15 +129,15 @@
     </div>
 
     <!-- Аудио поток -->
-    <div v-if="fileType === 'video' && metadata.audio_stream" class="border-2 border-black overflow-hidden mb-6">
-      <div class="border-b-2 border-black px-5 py-3 bg-white">
+    <div v-if="fileType === 'video' && metadata.audio_stream" class="border-[3px] border-black overflow-hidden mb-6">
+      <div class="border-b-[3px] border-black px-5 py-3 bg-white">
         <h4 class="font-bold text-black text-sm uppercase tracking-wide">Аудио поток</h4>
       </div>
       <div class="overflow-x-auto">
         <table class="min-w-full">
             <tbody class="bg-white">
-              <tr v-for="(value, key) in metadata.audio_stream" :key="key" v-if="value" class="border-b-2 border-black last:border-b-0">
-                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-2 border-black">
+              <tr v-for="(value, key) in metadata.audio_stream" :key="key" v-if="value" class="border-b-[3px] border-black last:border-b-0">
+                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-[3px] border-black">
                   {{ formatKey(key) }}
                 </td>
                 <td class="px-5 py-3 text-xs text-black">
@@ -150,15 +150,15 @@
     </div>
 
     <!-- Информация о кодировании для видео -->
-    <div v-if="fileType === 'video' && metadata.encoding_info" class="border-2 border-black overflow-hidden mb-6">
-      <div class="border-b-2 border-black px-5 py-3 bg-white">
+    <div v-if="fileType === 'video' && metadata.encoding_info" class="border-[3px] border-black overflow-hidden mb-6">
+      <div class="border-b-[3px] border-black px-5 py-3 bg-white">
         <h4 class="font-bold text-black text-sm uppercase tracking-wide">Информация о кодировании</h4>
       </div>
       <div class="overflow-x-auto">
         <table class="min-w-full">
             <tbody class="bg-white">
-              <tr v-for="(value, key) in metadata.encoding_info" :key="key" class="border-b-2 border-black last:border-b-0">
-                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-2 border-black">
+              <tr v-for="(value, key) in metadata.encoding_info" :key="key" class="border-b-[3px] border-black last:border-b-0">
+                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-[3px] border-black">
                   {{ formatKey(key) }}
                 </td>
                 <td class="px-5 py-3 text-xs text-black" :class="getSuspiciousClass(key, value)">
@@ -171,15 +171,15 @@
     </div>
 
     <!-- Характеристики изображения -->
-    <div v-if="fileType === 'image' && metadata.image_characteristics" class="border-2 border-black overflow-hidden mb-6">
-      <div class="border-b-2 border-black px-5 py-3 bg-white">
+    <div v-if="fileType === 'image' && metadata.image_characteristics" class="border-[3px] border-black overflow-hidden mb-6">
+      <div class="border-b-[3px] border-black px-5 py-3 bg-white">
         <h4 class="font-bold text-black text-sm uppercase tracking-wide">Характеристики изображения</h4>
       </div>
       <div class="overflow-x-auto">
         <table class="min-w-full">
             <tbody class="bg-white">
-              <tr v-for="(value, key) in filteredImageCharacteristics" :key="key" class="border-b-2 border-black last:border-b-0">
-                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-2 border-black">
+              <tr v-for="(value, key) in filteredImageCharacteristics" :key="key" class="border-b-[3px] border-black last:border-b-0">
+                <td class="px-5 py-3 whitespace-nowrap text-xs font-medium text-black w-1/3 border-r-[3px] border-black">
                   {{ formatKey(key) }}
                 </td>
                 <td class="px-5 py-3 text-xs text-black" :class="getImageCharClass(key, value)">
