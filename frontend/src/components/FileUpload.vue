@@ -1,5 +1,5 @@
 <template>
-  <div class="content-block border-[3px] border-black p-6">
+  <div class="content-block rounded-lg border-[3px] border-black p-6">
     <div
       @drop="handleDrop"
       @dragover.prevent
@@ -7,7 +7,7 @@
       @dragleave="isDragging = false"
       @dragenter="isDragging = true"
       :class="[
-        'border-[3px] border-black p-8 text-center transition-colors cursor-pointer',
+        'rounded-lg border-[3px] border-black p-8 text-center transition-colors cursor-pointer',
         isDragging ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'
       ]"
     >
@@ -15,57 +15,46 @@
           ref="fileInput"
           type="file"
           @change="handleFileSelect"
-          accept="image/jpeg,image/jpg,image/png,image/heic,image/heif,video/mp4,video/quicktime,video/x-matroska"
+          accept="image/jpeg,image/jpg,image/png,image/heic,image/heif,video/mp4,video/quicktime,video/x-matroska,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           class="hidden"
         />
 
-        <div class="space-y-4">
-          <svg
-            class="mx-auto h-8 w-8 text-black"
-            stroke="currentColor"
-            fill="none"
-            viewBox="0 0 48 48"
-            stroke-width="1.5"
-          >
-            <path
-              d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-
-          <div class="space-y-1">
-            <p class="text-sm font-medium text-black">
-              Перетащите файл сюда или нажмите для выбора
-            </p>
-            <p class="text-xs text-gray-600">
-              JPEG, PNG, HEIC | MP4, MOV, MKV
-            </p>
+        <div class="flex flex-col items-center gap-4">
+          <p class="title-sub">
+            Перетащите файл сюда или нажмите для выбора
+          </p>
+          <div class="flex items-center justify-center gap-3 flex-wrap">
+            <span class="title-sub text-base normal-case">изображение | видео | </span>
+            <img :src="logopptxUrl" alt="PPTX" class="h-10 w-auto object-contain" />
+            <img :src="logowordUrl" alt="Word" class="h-10 w-auto object-contain" />
           </div>
-
           <button
             @click="$refs.fileInput.click()"
-            class="px-6 py-3 border-[3px] border-black bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+            class="title-sub-white px-6 py-3 rounded-lg border-[3px] border-black bg-black hover:bg-gray-800 transition-colors"
           >
             ВЫБРАТЬ ФАЙЛ
           </button>
         </div>
       </div>
 
-    <div v-if="error" class="mt-4 p-3 border-[3px] border-black bg-white">
+    <div v-if="error" class="mt-4 p-3 rounded-lg border-[3px] border-black bg-white">
       <p class="text-black text-xs">{{ error }}</p>
     </div>
   </div>
 </template>
 
 <script>
-import { analyzeImage, analyzeVideo } from '../services/api'
+import { analyzeImage, analyzeVideo, analyzeDocument } from '../services/api'
+import logopptxUrl from '../public/logopptx.png'
+import logowordUrl from '../public/logoword.png'
 
 export default {
   name: 'FileUpload',
   emits: ['file-uploaded', 'analysis-started', 'analysis-completed'],
   data() {
     return {
+      logopptxUrl,
+      logowordUrl,
       selectedFile: null,
       isDragging: false,
       error: null,
@@ -104,9 +93,10 @@ export default {
       // Валидация типа
       const isImage = file.type.startsWith('image/')
       const isVideo = file.type.startsWith('video/')
+      const isDocx = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || (file.name && file.name.toLowerCase().endsWith('.docx'))
       
-      if (!isImage && !isVideo) {
-        this.error = 'Неподдерживаемый тип файла. Используйте изображения (JPEG, PNG, HEIC) или видео (MP4, MOV, MKV)'
+      if (!isImage && !isVideo && !isDocx) {
+        this.error = 'Неподдерживаемый тип файла. Используйте изображения (JPEG, PNG, HEIC), видео (MP4, MOV, MKV) или Word (.docx)'
         return
       }
       
@@ -124,6 +114,9 @@ export default {
         if (file.type.startsWith('image/')) {
           this.uploadProgress = 30
           result = await analyzeImage(file)
+        } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || (file.name && file.name.toLowerCase().endsWith('.docx'))) {
+          this.uploadProgress = 30
+          result = await analyzeDocument(file)
         } else {
           this.uploadProgress = 30
           result = await analyzeVideo(file)
@@ -142,7 +135,12 @@ export default {
         
       } catch (error) {
         console.error('Ошибка анализа:', error)
-        this.error = error.response?.data?.detail || 'Произошла ошибка при анализе файла'
+        const detail = error.response?.data?.detail
+        this.error = typeof detail === 'string'
+          ? detail
+          : Array.isArray(detail)
+            ? (detail[0]?.msg || detail[0] || 'Произошла ошибка при анализе файла')
+            : 'Произошла ошибка при анализе файла'
         this.$emit('analysis-completed')
       } finally {
         setTimeout(() => {

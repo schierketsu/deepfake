@@ -263,6 +263,8 @@ class ReportGenerator:
         metadata = report_data.get("metadata", {})
         if report_data.get("file_type") == "image":
             self._add_image_metadata(story, metadata, styles, normal_style, heading_style)
+        elif report_data.get("file_type") == "document":
+            self._add_document_metadata(story, metadata, styles, normal_style, heading_style)
         else:
             self._add_video_metadata(story, metadata, styles, normal_style, heading_style)
         
@@ -443,3 +445,36 @@ class ReportGenerator:
                 audio_table = Table(audio_data, colWidths=[2.2*inch, 4.3*inch])
                 audio_table.setStyle(table_style)
                 story.append(audio_table)
+
+    def _add_document_metadata(self, story, metadata, styles, normal_style, heading_style):
+        """Добавление в отчёт результатов анализа изображений из Word-документа"""
+        def _escape(s):
+            if s is None:
+                return ""
+            s = str(s)
+            return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+        images = metadata.get("images", [])
+        images_count = metadata.get("images_count", 0)
+        images_with_ai = metadata.get("images_with_ai_count", 0)
+
+        story.append(Paragraph(
+            f"<b>Документ Word:</b> извлечено изображений — {images_count}, "
+            f"с признаками ИИ — {images_with_ai}.",
+            normal_style
+        ))
+        story.append(Spacer(1, 0.2*inch))
+
+        for i, img in enumerate(images):
+            fname = _escape(img.get("filename", f"image_{i+1}"))
+            ai_ind = img.get("ai_indicators", {})
+            prob = ai_ind.get("ai_probability", 0)
+            story.append(Paragraph(f"<b>Изображение {i+1}:</b> {fname} — вероятность ИИ {prob}%", heading_style))
+            if ai_ind.get("software_detected"):
+                story.append(Paragraph(
+                    "Обнаруженное ПО: " + _escape(", ".join(ai_ind["software_detected"])),
+                    normal_style
+                ))
+            for anom in ai_ind.get("anomalies", []):
+                story.append(Paragraph("• " + _escape(anom), normal_style))
+            story.append(Spacer(1, 0.15*inch))

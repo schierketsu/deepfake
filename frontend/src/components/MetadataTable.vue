@@ -1,11 +1,49 @@
 <template>
   <div class="space-y-6">
+    <!-- Результаты анализа Word-документа: список изображений -->
+    <template v-if="fileType === 'document'">
+      <div class="rounded-lg border-[3px] border-black overflow-hidden">
+        <div class="border-b-[3px] border-black px-5 py-3 bg-white">
+          <h4 class="font-bold text-black text-sm uppercase tracking-wide">
+            Изображения в документе
+          </h4>
+          <p class="text-xs text-gray-600 mt-1">
+            Всего: {{ metadata.images_count || 0 }}, с признаками ИИ: {{ metadata.images_with_ai_count || 0 }}
+          </p>
+        </div>
+        <div class="divide-y divide-black divide-[3px]">
+          <div
+            v-for="(img, index) in (metadata.images || [])"
+            :key="index"
+            class="px-5 py-4 bg-white"
+          >
+            <div class="font-medium text-black text-sm mb-2">
+              {{ index + 1 }}. {{ img.filename }}
+            </div>
+            <div class="text-xs text-black space-y-1">
+              <p>
+                <span class="font-semibold">Вероятность ИИ:</span>
+                {{ (img.ai_indicators && img.ai_indicators.ai_probability) ?? 0 }}%
+              </p>
+              <p v-if="img.ai_indicators && img.ai_indicators.software_detected && img.ai_indicators.software_detected.length">
+                <span class="font-semibold">ПО:</span>
+                {{ img.ai_indicators.software_detected.join(', ') }}
+              </p>
+              <ul v-if="img.ai_indicators && img.ai_indicators.anomalies && img.ai_indicators.anomalies.length" class="list-disc pl-4 mt-1">
+                <li v-for="(anom, ai) in img.ai_indicators.anomalies" :key="ai">{{ anom }}</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
     <!-- Группированные метаданные (если доступны) -->
-    <div v-if="hasGroupedMetadata" class="space-y-6">
+    <div v-else-if="hasGroupedMetadata" class="space-y-6">
       <div 
         v-for="(sectionData, sectionName) in groupedMetadata" 
         :key="sectionName"
-        class="border-[3px] border-black overflow-hidden"
+        class="rounded-lg border-[3px] border-black overflow-hidden"
       >
         <div class="border-b-[3px] border-black px-5 py-3 bg-white">
           <h4 class="font-bold text-black text-sm uppercase tracking-wide">
@@ -34,9 +72,9 @@
     </div>
 
     <!-- Старый формат (fallback) -->
-    <template v-else>
+    <template v-else-if="!hasGroupedMetadata">
       <!-- EXIF данные для изображений -->
-      <div v-if="fileType === 'image'" class="border-[3px] border-black overflow-hidden">
+      <div v-if="fileType === 'image'" class="rounded-lg border-[3px] border-black overflow-hidden">
         <div class="border-b-[3px] border-black px-5 py-3 bg-white">
           <h4 class="font-bold text-black text-sm uppercase tracking-wide">EXIF данные</h4>
         </div>
@@ -61,7 +99,7 @@
       </div>
 
       <!-- XMP данные для изображений -->
-      <div v-if="fileType === 'image'" class="border-[3px] border-black overflow-hidden">
+      <div v-if="fileType === 'image'" class="rounded-lg border-[3px] border-black overflow-hidden">
         <div class="border-b-[3px] border-black px-5 py-3 bg-white">
           <h4 class="font-bold text-black text-sm uppercase tracking-wide">XMP данные</h4>
         </div>
@@ -87,7 +125,7 @@
     </template>
 
     <!-- Метаданные контейнера для видео -->
-    <div v-if="fileType === 'video' && metadata.container" class="border-[3px] border-black overflow-hidden mb-6">
+    <div v-if="fileType === 'video' && metadata.container" class="rounded-lg border-[3px] border-black overflow-hidden mb-6">
       <div class="border-b-[3px] border-black px-5 py-3 bg-white">
         <h4 class="font-bold text-black text-sm uppercase tracking-wide">Метаданные контейнера</h4>
       </div>
@@ -108,7 +146,7 @@
     </div>
 
     <!-- Видео поток -->
-    <div v-if="fileType === 'video' && metadata.video_stream" class="border-[3px] border-black overflow-hidden mb-6">
+    <div v-if="fileType === 'video' && metadata.video_stream" class="rounded-lg border-[3px] border-black overflow-hidden mb-6">
       <div class="border-b-[3px] border-black px-5 py-3 bg-white">
         <h4 class="font-bold text-black text-sm uppercase tracking-wide">Видео поток</h4>
       </div>
@@ -129,7 +167,7 @@
     </div>
 
     <!-- Аудио поток -->
-    <div v-if="fileType === 'video' && metadata.audio_stream" class="border-[3px] border-black overflow-hidden mb-6">
+    <div v-if="fileType === 'video' && metadata.audio_stream" class="rounded-lg border-[3px] border-black overflow-hidden mb-6">
       <div class="border-b-[3px] border-black px-5 py-3 bg-white">
         <h4 class="font-bold text-black text-sm uppercase tracking-wide">Аудио поток</h4>
       </div>
@@ -150,7 +188,7 @@
     </div>
 
     <!-- Информация о кодировании для видео -->
-    <div v-if="fileType === 'video' && metadata.encoding_info" class="border-[3px] border-black overflow-hidden mb-6">
+    <div v-if="fileType === 'video' && metadata.encoding_info" class="rounded-lg border-[3px] border-black overflow-hidden mb-6">
       <div class="border-b-[3px] border-black px-5 py-3 bg-white">
         <h4 class="font-bold text-black text-sm uppercase tracking-wide">Информация о кодировании</h4>
       </div>
@@ -171,7 +209,7 @@
     </div>
 
     <!-- Характеристики изображения -->
-    <div v-if="fileType === 'image' && metadata.image_characteristics" class="border-[3px] border-black overflow-hidden mb-6">
+    <div v-if="fileType === 'image' && metadata.image_characteristics" class="rounded-lg border-[3px] border-black overflow-hidden mb-6">
       <div class="border-b-[3px] border-black px-5 py-3 bg-white">
         <h4 class="font-bold text-black text-sm uppercase tracking-wide">Характеристики изображения</h4>
       </div>

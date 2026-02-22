@@ -9,6 +9,7 @@ import time
 from app.services.image_analyzer import ImageAnalyzer
 from app.services.video_analyzer import VideoAnalyzer
 from app.services.ai_detector import AIDetector
+from app.services.document_analyzer import DocumentAnalyzer
 from app.services.report_generator import ReportGenerator
 from app.models.schemas import AnalysisResponse, Summary, AIMetadata
 
@@ -23,6 +24,21 @@ MAX_FILE_SIZE = 100 * 1024 * 1024
 async def health_check():
     """Проверка статуса сервиса"""
     return {"status": "ok", "service": "deepfake-metadata-analyzer"}
+
+
+@router.get("/routes")
+async def list_routes():
+    """Список доступных эндпоинтов (для проверки)"""
+    return {
+        "endpoints": [
+            "GET /api/health",
+            "GET /api/routes",
+            "POST /api/analyze/image",
+            "POST /api/analyze/video",
+            "POST /api/analyze/document",
+            "GET /api/reports/{filename}",
+        ]
+    }
 
 @router.get("/test/exiftool")
 async def test_exiftool():
@@ -238,6 +254,128 @@ async def analyze_video(file: UploadFile = File(...)):
         # Удаление временного файла
         if temp_file and os.path.exists(temp_file):
             os.unlink(temp_file)
+
+
+@router.post("/analyze/document", response_model=AnalysisResponse)
+async def analyze_document(file: UploadFile = File(...)):
+    """
+    Анализ документа Word (.docx): извлечение всех изображений и проверка каждого на признаки ИИ.
+    """
+    temp_file = None
+    try:
+        content = await file.read()
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail="Файл слишком большой (максимум 100MB)")
+
+        fn = (file.filename or "").lower()
+        if not fn.endswith(".docx"):
+            raise HTTPException(
+                status_code=400,
+                detail="Поддерживается только формат Word (.docx)",
+            )
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
+            tmp.write(content)
+            temp_file = tmp.name
+
+        doc_analyzer = DocumentAnalyzer()
+        doc_result = doc_analyzer.analyze_document(temp_file)
+
+        images_count = doc_result["images_count"]
+        if images_count == 0:
+            summary = Summary(
+                location=None,
+                date_time=None,
+                source="Word документ (изображений не найдено)",
+                ai_probability=0,
+                confidence="low",
+            )
+            report_data = {
+                "file_type": "document",
+                "summary": {
+                    "location": None,
+                    "date_time": None,
+                    "source": "Word документ (изображений не найдено)",
+                    "ai_probability": 0,
+                    "confidence": "low",
+                },
+                "metadata": {"images": [], "images_count": 0, "images_with_ai_count": 0},
+                "ai_indicators": {
+                    "software_detected": [],
+                    "heuristics": {},
+                    "anomalies": [],
+                    "evidence_from_metadata": [],
+                },
+                "file_info": {
+                    "name": file.filename or "document.docx",
+                    "size": len(content),
+                    "size_formatted": f"{len(content) / 1024:.2f} KB",
+                },
+                "generated_at": __import__("datetime").datetime.now().isoformat(),
+            }
+            report_gen = ReportGenerator()
+            report_path = report_gen.generate_pdf_report(report_data, temp_file)
+        else:
+            agg = doc_result["aggregated"]
+            summary = Summary(
+                location=None,
+                date_time=None,
+                source=f"Word документ: изображений {images_count}, с признаками ИИ — {doc_result['images_with_ai_count']}",
+                ai_probability=agg["ai_probability"],
+                confidence=agg["confidence"],
+            )
+            report_gen = ReportGenerator()
+            report_data = {
+                "file_type": "document",
+                "summary": {
+                    "location": None,
+                    "date_time": None,
+                    "source": f"Word документ: изображений {images_count}, с признаками ИИ — {doc_result['images_with_ai_count']}",
+                    "ai_probability": agg["ai_probability"],
+                    "confidence": agg["confidence"],
+                },
+                "metadata": {
+                    "images": doc_result["images"],
+                    "images_count": images_count,
+                    "images_with_ai_count": doc_result["images_with_ai_count"],
+                },
+                "ai_indicators": {
+                    "software_detected": agg["software_detected"],
+                    "heuristics": {},
+                    "anomalies": agg["anomalies"],
+                    "evidence_from_metadata": agg["evidence_from_metadata"],
+                },
+                "file_info": {
+                    "name": file.filename or "document.docx",
+                    "size": len(content),
+                    "size_formatted": f"{len(content) / (1024*1024):.2f} MB" if len(content) >= 1024 * 1024 else f"{len(content) / 1024:.2f} KB",
+                },
+            }
+            report_data["generated_at"] = __import__("datetime").datetime.now().isoformat()
+            report_gen = ReportGenerator()
+            report_path = report_gen.generate_pdf_report(report_data, temp_file)
+
+        return AnalysisResponse(
+            file_type="document",
+            summary=summary,
+            metadata=report_data["metadata"],
+            ai_indicators=AIMetadata(
+                software_detected=report_data["ai_indicators"]["software_detected"],
+                heuristics=report_data["ai_indicators"].get("heuristics", {}),
+                anomalies=report_data["ai_indicators"].get("anomalies", []),
+                evidence_from_metadata=report_data["ai_indicators"].get("evidence_from_metadata") or [],
+            ),
+            report_url=f"/api/reports/{os.path.basename(report_path)}",
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("Ошибка анализа документа: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Ошибка анализа документа: {str(e)}")
+    finally:
+        if temp_file and os.path.exists(temp_file):
+            os.unlink(temp_file)
+
 
 @router.get("/reports/{report_filename}")
 async def get_report(report_filename: str):

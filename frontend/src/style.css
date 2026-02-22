@@ -1,5 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
 
+@font-face {
+  font-family: 'Fredoka One';
+  src: url('./public/FredokaOne-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -46,12 +54,24 @@ header {
 /* Стиль заголовка главной страницы (крупный) */
 .title-main {
   font-family: 'Inter', sans-serif !important;
-  font-size: 2.75rem;
-  line-height: 3.25rem;
+  font-size: 3.5rem;
+  line-height: 4rem;
   font-weight: 900;
   text-transform: uppercase;
   color: rgb(10, 10, 10);
   display: inline-block;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Крупный процент вероятности ИИ */
+.title-percent {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 4.5rem;
+  line-height: 1.1;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: rgb(10, 10, 10);
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 }
@@ -65,6 +85,18 @@ header {
   text-transform: uppercase;
   color: rgb(10, 10, 10);
   display: inline-block;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Тот же стиль, белый текст (для кнопок на тёмном фоне) */
+.title-sub-white {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #fff;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 }

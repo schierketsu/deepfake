@@ -1,5 +1,6 @@
 import axios from 'axios'
 
+// Бэкенд по умолчанию на порту 8000 (для dev и сборки без VITE_API_URL)
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const api = axios.create({
@@ -28,6 +29,19 @@ export const analyzeVideo = async (file) => {
   formData.append('file', file)
   
   const response = await api.post('/api/analyze/video', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+  
+  return response.data
+}
+
+export const analyzeDocument = async (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  const response = await api.post('/api/analyze/document', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }
