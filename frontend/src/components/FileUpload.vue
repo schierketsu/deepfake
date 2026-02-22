@@ -32,8 +32,8 @@
       />
 
       <div class="mx-auto flex max-w-2xl flex-col items-center gap-4">
-        <div class="rounded-2xl bg-soft-900 px-4 py-2 text-sm font-semibold text-accent-300 shadow-soft">
-          JPEG, PNG, HEIC, MP4, MOV, MKV, DOCX
+        <div class="text-base md:text-xl font-black italic text-ink">
+          JPEG, PNG, HEIC | MP4, MOV, MKV | DOCX, PPTX
         </div>
         <p class="text-heading-lg font-semibold text-ink">
           Перетащите файл сюда или нажмите для выбора

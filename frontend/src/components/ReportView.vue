@@ -19,8 +19,7 @@
         <p class="mb-4 text-sm md:text-base uppercase tracking-[0.08em] text-soft-300 font-black">Вероятность ИИ-вмешательства</p>
         <div class="absolute inset-x-0 bottom-0 transition-all duration-500" :style="{ height: `${summary.ai_probability || 0}%`, backgroundColor: getProbabilityColor(summary.ai_probability || 0) }" />
         <div class="relative z-10">
-          <p class="mb-2 text-lg md:text-xl font-black text-soft-100">{{ getProbabilityLabel(summary.ai_probability || 0) }}</p>
-          <p class="title-percent mt-8 text-soft-50 text-center text-[4.5rem] md:text-[5.5rem] italic">{{ summary.ai_probability || 0 }}%</p>
+          <p class="title-percent mt-16 text-soft-50 text-center text-[4.5rem] md:text-[5.5rem] italic">{{ summary.ai_probability || 0 }}%</p>
         </div>
       </div>
 
