@@ -120,6 +120,9 @@
   .card {
     @apply rounded-lg border border-gray-200 bg-white;
   }
+  .card-no-border {
+    border: none;
+  }
 
   .card-soft {
     @apply rounded-lg border border-gray-200 bg-gray-50;
@@ -174,6 +177,65 @@
   .status-chip {
     @apply inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-700;
   }
+  .status-chip.status-chip-no-text {
+    font-size: 0;
+    min-width: 1.25rem;
+    min-height: 1.25rem;
+    padding: 0.25rem;
+  }
+  .results-detail .status-chip {
+    @apply min-w-[12rem] justify-center px-6 py-2 text-center text-base;
+  }
+  .results-detail .status-chip.status-chip-fill {
+    position: relative;
+    background-color: #e5e7eb;
+    overflow: hidden;
+  }
+  .results-detail .status-chip.status-chip-fill.status-chip-ai-low,
+  .results-detail .status-chip.status-chip-fill.status-chip-ai-mid,
+  .results-detail .status-chip.status-chip-fill.status-chip-ai-high {
+    background-color: #e5e7eb;
+  }
+  .results-detail .status-chip.status-chip-fill::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: calc(var(--ai-pct, 0) * 1%);
+    max-width: 100%;
+    background-color: var(--ai-fill, #e5e7eb);
+    z-index: 0;
+  }
+  .results-detail .status-chip.status-chip-fill.status-chip-vertical {
+    min-width: 7rem;
+    width: 7rem;
+    min-height: 6rem;
+    height: 10.5rem;
+    max-height: 10.5rem;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem;
+  }
+  .results-detail .status-chip.status-chip-fill.status-chip-vertical::before {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: calc(var(--ai-pct, 0) * 1%);
+    max-height: 100%;
+    border-radius: 0.5rem 0.5rem 0 0;
+    background-color: var(--ai-fill, #e5e7eb);
+  }
+  .results-detail .status-chip.status-chip-fill {
+    color: #000;
+    z-index: 1;
+  }
+  .results-detail .status-chip.status-chip-fill.status-chip-ai-high {
+    color: #fff;
+  }
   .status-chip-ai-low {
     background-color: #00FF00;
     color: #000;
@@ -221,6 +283,42 @@
   }
 
   .results-detail {
-    @apply min-w-0 rounded-lg border border-gray-200 bg-white p-4;
+    @apply min-w-0 rounded-lg border border-gray-200 bg-white;
+    position: relative;
+    overflow: visible;
+    padding: 5rem 1rem 1rem 1rem;
+  }
+  .results-detail .wave-strip-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4rem;
+    display: block;
+    pointer-events: none;
+    z-index: 1;
+    border-radius: 0.5rem 0.5rem 0 0;
+  }
+  .results-detail .wave-strip-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 1rem;
+    pointer-events: none;
+    z-index: 2;
+    font-family: inherit;
+    font-weight: 500;
+    font-size: 1.125rem;
+    color: #000;
+  }
+  .results-detail .wave-strip-label--low,
+  .results-detail .wave-strip-label--mid,
+  .results-detail .wave-strip-label--high {
+    color: #000;
   }
 }

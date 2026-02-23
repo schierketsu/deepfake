@@ -1,9 +1,6 @@
 <template>
   <div class="space-y-4">
-    <div class="card p-4">
-      <div class="flex flex-wrap items-center gap-2">
-        <span :class="['status-chip', aiChipClass(aiProbability)]">ИИ: {{ aiProbability }}%</span>
-      </div>
+    <div class="card card-no-border p-4">
       <p v-if="softwareDetected" class="text-sm text-gray-600">ПО: {{ softwareDetected }}</p>
       <ul v-if="anomalies.length" class="mt-1 list-disc list-inside text-sm text-gray-600">
         <li v-for="(anom, ai) in anomalies" :key="ai">{{ anom }}</li>
@@ -73,6 +70,12 @@ export default {
       if (n < 35) return 'status-chip-ai-low'
       if (n <= 70) return 'status-chip-ai-mid'
       return 'status-chip-ai-high'
+    },
+    aiChipColor(pct) {
+      const n = Number(pct)
+      if (n < 35) return '#00FF00'
+      if (n <= 70) return '#FFFF00'
+      return '#FF1493'
     },
     formatFileSize(bytes) {
       if (typeof bytes !== 'number' || bytes <= 0) return 'N/A'

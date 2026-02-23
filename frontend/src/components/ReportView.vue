@@ -36,12 +36,16 @@
             @click="selectedId = index"
           >
             <span class="results-nav-item-label">{{ index + 1 }}. {{ img.filename || 'Без имени' }}</span>
-            <span :class="['status-chip', 'text-xs', aiChipClass((img.ai_indicators && img.ai_indicators.ai_probability) ?? 0)]">ИИ: {{ (img.ai_indicators && img.ai_indicators.ai_probability) ?? 0 }}%</span>
+            <span :class="['status-chip', 'status-chip-no-text', 'text-xs', aiChipClass((img.ai_indicators && img.ai_indicators.ai_probability) ?? 0)]" :aria-label="`ИИ: ${(img.ai_indicators && img.ai_indicators.ai_probability) ?? 0}%`"></span>
           </button>
         </nav>
         <p v-if="!(result.metadata?.images || []).length" class="text-sm text-gray-500">Нет изображений</p>
       </aside>
       <div class="results-detail" ref="detailPanel">
+        <svg class="wave-strip-svg" viewBox="0 0 1 1.07" preserveAspectRatio="none" aria-hidden="true">
+          <path :fill="waveFillColor" :d="wavePathD" />
+        </svg>
+        <div class="wave-strip-label" :class="waveLabelClass" aria-hidden="true">{{ waveLabel }}</div>
         <template v-if="selectedImage">
           <ImageDetailPanel :image="selectedImage" :image-index="selectedId" />
         </template>
@@ -76,7 +80,10 @@ export default {
   emits: ['export-pdf', 'export-json'],
   data() {
     return {
-      selectedId: 0
+      selectedId: 0,
+      wavePathD: 'M 0 0 L 1 0 L 1 1 L 0 1 Z',
+      waveAnimId: null,
+      waveStartTime: null
     }
   },
   computed: {
@@ -90,6 +97,27 @@ export default {
       const images = this.result.metadata?.images || []
       if (this.selectedId < 0 || this.selectedId >= images.length) return null
       return images[this.selectedId] || null
+    },
+    waveFillColor() {
+      const pct = (this.selectedImage?.ai_indicators && this.selectedImage.ai_indicators.ai_probability) ?? 0
+      const n = Number(pct)
+      if (n < 35) return '#00FF00'
+      if (n <= 70) return '#FFFF00'
+      return '#FF1493'
+    },
+    waveLabel() {
+      const pct = (this.selectedImage?.ai_indicators && this.selectedImage.ai_indicators.ai_probability) ?? 0
+      const n = Number(pct)
+      if (n < 35) return 'Вероятность ИИ: низкая'
+      if (n <= 70) return 'Вероятность ИИ: средняя'
+      return 'Вероятность ИИ: высокая'
+    },
+    waveLabelClass() {
+      const pct = (this.selectedImage?.ai_indicators && this.selectedImage.ai_indicators.ai_probability) ?? 0
+      const n = Number(pct)
+      if (n < 35) return 'wave-strip-label--low'
+      if (n <= 70) return 'wave-strip-label--mid'
+      return 'wave-strip-label--high'
     },
     summary() {
       return this.result.summary || {}
@@ -143,7 +171,34 @@ export default {
     },
     handleExportJSON() {
       this.$emit('export-json', this.result)
+    },
+    buildWavePath(phase) {
+      const n = 48
+      const amplitude = 0.06
+      const waves = 4
+      let d = 'M 0 0 L 1 0 L 1 1'
+      for (let i = 0; i <= n; i++) {
+        const x = 1 - i / n
+        const y = 1 + amplitude * Math.sin(2 * Math.PI * waves * x - phase)
+        d += ` L ${x.toFixed(4)} ${y.toFixed(4)}`
+      }
+      d += ' L 0 1 Z'
+      return d
+    },
+    waveTick(timestamp) {
+      if (!this.waveStartTime) this.waveStartTime = timestamp
+      const elapsed = (timestamp - this.waveStartTime) / 1000
+      const period = 4
+      const phase = (elapsed / period) * 2 * Math.PI
+      this.wavePathD = this.buildWavePath(phase)
+      this.waveAnimId = requestAnimationFrame((t) => this.waveTick(t))
     }
+  },
+  mounted() {
+    this.waveAnimId = requestAnimationFrame((t) => this.waveTick(t))
+  },
+  beforeUnmount() {
+    if (this.waveAnimId != null) cancelAnimationFrame(this.waveAnimId)
   }
 }
 </script>

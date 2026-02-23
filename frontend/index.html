@@ -10,6 +10,18 @@
     <title>Deepfake Metadata Analyzer</title>
   </head>
   <body>
+    <svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
+      <defs>
+        <clipPath id="waveClipBox" clipPathUnits="objectBoundingBox">
+          <path id="wavePath" d="M 0 0 Q 0.125 0.14 0.25 0 Q 0.375 0.14 0.5 0 Q 0.625 0.14 0.75 0 Q 0.875 0.14 1 0 L 1 1 L 0 1 Z">
+            <animate attributeName="d" dur="3s" repeatCount="indefinite" keyTimes="0;0.5;1" keySplines="0.4 0 0.6 1; 0.4 0 0.6 1"
+              values="M 0 0 Q 0.125 0.14 0.25 0 Q 0.375 0.14 0.5 0 Q 0.625 0.14 0.75 0 Q 0.875 0.14 1 0 L 1 1 L 0 1 Z;
+                      M 0 0.14 Q 0.125 0 0.25 0.14 Q 0.375 0 0.5 0.14 Q 0.625 0 0.75 0.14 Q 0.875 0 1 0.14 L 1 1 L 0 1 Z;
+                      M 0 0 Q 0.125 0.14 0.25 0 Q 0.375 0.14 0.5 0 Q 0.625 0.14 0.75 0 Q 0.875 0.14 1 0 L 1 1 L 0 1 Z"/>
+          </path>
+        </clipPath>
+      </defs>
+    </svg>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
