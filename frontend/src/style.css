@@ -1,43 +1,26 @@
-@font-face {
-  font-family: 'PF Centro Sans Pro';
-  src:
-    local('PF Centro Sans Pro Medium'),
-    local('PFCentroSansPro-Medium'),
-    url('./public/pf-centro-sans-pro/PFCentroSansPro-Medium.otf') format('opentype');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'PF Centro Sans Pro';
-  src:
-    local('PF Centro Sans Pro Black'),
-    local('PFCentroSansPro-Black'),
-    url('./public/pf-centro-sans-pro/PFCentroSansPro-Black.otf') format('opentype');
-  font-weight: 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'PF Centro Sans Pro';
-  src:
-    local('PF Centro Sans Pro Black Italic'),
-    local('PFCentroSansPro-UBlackItalic'),
-    url('./public/pf-centro-sans-pro/PFCentroSansPro-UBlackItalic.otf') format('opentype');
-  font-weight: 900;
-  font-style: italic;
-  font-display: swap;
-}
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Polonium';
+  src: url('./public/Polonium/Polonium.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Polonium';
+  src: url('./public/Polonium/Polonium-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   * {
-    @apply border-soft-200;
+    @apply border-gray-200;
   }
 
   html,
@@ -48,54 +31,184 @@
 
   body {
     margin: 0;
-    @apply bg-paper text-ink antialiased font-sans;
-    background-image:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.06) 100%),
-      radial-gradient(circle at 10% 10%, rgba(47, 147, 230, 0.12), transparent 42%);
+    @apply bg-gray-50 text-gray-900 antialiased font-sans font-medium;
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Polonium', serif;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  h1 { font-size: 3rem; line-height: 3.25rem; }
+  h2 { font-size: 2.25rem; line-height: 2.5rem; }
+  h3 { font-size: 1.875rem; line-height: 2.25rem; }
+  h4 { font-size: 1.5rem; line-height: 1.75rem; }
+  h5 { font-size: 1.25rem; line-height: 1.5rem; }
+  h6 { font-size: 1.125rem; line-height: 1.375rem; }
 }
 
 @layer components {
   .app-shell {
-    @apply min-h-screen bg-paper flex flex-col;
+    @apply min-h-screen flex flex-col bg-gray-50;
+  }
+
+  .header-dark {
+    background-color: #212121;
+    color: #FFF5E5;
+  }
+  .header-dark .content-block {
+    background-color: #212121;
+    border: none;
+  }
+  .header-dark .content-block .border-dashed {
+    border-color: #212121;
+  }
+  .header-dark .content-block .border-dashed:hover,
+  .header-dark .content-block .border-dashed.border-gray-400 {
+    border-color: #212121;
+  }
+  .header-dark .content-block .border-dashed p,
+  .header-dark .content-block .border-dashed .text-gray-900,
+  .header-dark .content-block .border-dashed .text-gray-500 {
+    color: #212121;
+  }
+  .header-dark .primary-btn,
+  .header-dark .secondary-btn {
+    background-color: #212121;
+  }
+  .header-dark .primary-btn:hover,
+  .header-dark .secondary-btn:hover {
+    background-color: #2d2d2d;
+  }
+  .header-dark .content-block h2,
+  .header-dark .content-block p,
+  .header-dark .content-block .text-gray-900,
+  .header-dark .content-block .text-gray-500,
+  .header-dark .content-block .text-base {
+    color: #FFF5E5;
+  }
+
+  /* Заголовки в блоке результатов — как подпись «Перетащите документ сюда…» */
+  main .content-block h3,
+  main .content-block h4,
+  main .content-block h5,
+  main .content-block h6 {
+    font-family: inherit;
+    font-weight: 400;
+    letter-spacing: normal;
+    text-transform: none;
+    color: #6b7280;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  main .content-block .primary-btn,
+  main .content-block .secondary-btn {
+    background-color: #212121;
+  }
+  main .content-block .primary-btn:hover,
+  main .content-block .secondary-btn:hover {
+    background-color: #2d2d2d;
   }
 
   .content-block {
-    @apply rounded-3xl border border-soft-300 bg-soft-50 shadow-soft;
+    @apply rounded-lg border border-gray-200 bg-white;
+  }
+
+  .card {
+    @apply rounded-lg border border-gray-200 bg-white;
   }
 
   .card-soft {
-    @apply rounded-2xl border border-soft-300 bg-soft-100 shadow-soft;
+    @apply rounded-lg border border-gray-200 bg-gray-50;
   }
 
   .soft-label {
-    @apply text-xs uppercase tracking-[0.08em] text-soft-600 font-medium;
+    @apply text-xs uppercase tracking-wider text-gray-500 font-medium;
   }
 
-  .soft-title {
-    @apply font-display text-heading-xl md:text-display-lg font-black text-ink;
-    letter-spacing: -0.02em;
-  }
-
-  .soft-subtitle {
-    @apply text-soft-800 text-body-lg font-medium;
-  }
-
-  .title-percent {
-    @apply font-display text-display-xl md:text-[4rem] font-black text-ink;
-    letter-spacing: -0.03em;
-    line-height: 1;
-  }
-
-  .primary-btn {
-    @apply inline-flex items-center justify-center rounded-2xl bg-ink px-6 py-3 text-sm font-semibold text-white shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:bg-soft-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2;
-  }
-
+  .primary-btn,
   .secondary-btn {
-    @apply inline-flex items-center justify-center rounded-2xl border border-soft-200 bg-white px-6 py-3 text-sm font-semibold text-ink shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:bg-soft-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2;
+    box-sizing: border-box;
+    border: 2px solid #FFF5E5;
+    font-family: "Polonium", serif;
+    font-weight: bold;
+    text-align: center;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin: 20px 0;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    overflow: hidden;
+    position: relative;
+    z-index: 2;
+    cursor: pointer;
+    border-radius: 150px;
+    pointer-events: auto;
+    padding: 15px 80px;
+    font-size: 16px;
+    line-height: 19px;
+    color: #FFF5E5;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  }
+  .primary-btn:hover,
+  .secondary-btn:hover {
+    background: rgba(255, 245, 229, 0.15);
+  }
+  .primary-btn:focus,
+  .secondary-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 245, 229, 0.5);
+  }
+  .primary-btn:disabled,
+  .secondary-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .status-chip {
-    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
+    @apply inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-700;
+  }
+
+  .results-two-column {
+    @apply grid gap-4 min-h-0;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 1024px) {
+    .results-two-column {
+      grid-template-columns: 280px 1fr;
+      @apply gap-6;
+    }
+  }
+
+  .results-sidebar {
+    @apply flex flex-col min-w-0 rounded-lg border border-gray-200 bg-white p-4;
+  }
+
+  .results-nav {
+    @apply flex flex-col gap-0.5;
+  }
+
+  .results-nav-item {
+    @apply flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-1;
+    @apply text-gray-700 hover:bg-gray-50;
+  }
+  .results-nav-item--active {
+    @apply bg-gray-100 text-gray-900 font-medium;
+  }
+  .results-nav-item-label {
+    @apply break-words flex-1 min-w-0;
+  }
+  .results-nav-item-meta {
+    @apply text-xs text-gray-500 font-normal w-full mt-0.5;
+  }
+
+  .results-detail {
+    @apply min-w-0 rounded-lg border border-gray-200 bg-white p-4;
   }
 }

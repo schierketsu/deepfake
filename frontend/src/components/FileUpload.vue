@@ -1,11 +1,6 @@
 <template>
-  <div class="content-block p-6 md:p-8">
-    <div class="mb-4 flex items-center justify-between gap-4">
-      <div>
-        <p class="soft-label mb-2">Шаг 1</p>
-        <h2 class="text-heading-xl font-bold text-ink">Загрузка файла</h2>
-      </div>
-    </div>
+  <div class="content-block p-5 sm:p-6">
+    <h2 class="font-polonium text-3xl font-bold text-gray-900 mb-4">Загрузка файла</h2>
 
     <div
       @click="openFileDialog"
@@ -15,8 +10,8 @@
       @dragleave="isDragging = false"
       @dragenter="isDragging = true"
       :class="[
-        'rounded-3xl border p-8 text-center transition-all duration-200 cursor-pointer',
-        isDragging ? 'border-accent-400 bg-accent-100 shadow-soft-lg' : 'border-soft-300 bg-soft-100 hover:bg-soft-50'
+        'rounded-lg border-2 border-dashed p-8 text-center cursor-pointer transition-colors',
+        isDragging ? 'border-gray-400 bg-gray-100' : 'border-gray-300 bg-white hover:bg-gray-50'
       ]"
       role="button"
       tabindex="0"
@@ -27,21 +22,21 @@
         ref="fileInput"
         type="file"
         @change="handleFileSelect"
-        accept="image/jpeg,image/jpg,image/png,image/heic,image/heif,video/mp4,video/quicktime,video/x-matroska,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        accept=".docx,.pptx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation"
         class="hidden"
       />
 
-      <div class="mx-auto flex max-w-2xl flex-col items-center gap-4">
-        <div class="text-base md:text-xl font-black italic text-ink">
-          JPEG, PNG, HEIC | MP4, MOV, MKV | DOCX, PPTX
-        </div>
-        <p class="text-heading-lg font-semibold text-ink">
-          Перетащите файл сюда или нажмите для выбора
+      <div class="mx-auto flex max-w-3xl flex-col items-center gap-2">
+        <p class="text-base font-medium text-gray-900">
+          DOCX, PPTX
+        </p>
+        <p class="text-sm text-gray-500 mt-1">
+          Перетащите документ сюда или нажмите для выбора
         </p>
         <button
           type="button"
           @click.stop="openFileDialog"
-          class="primary-btn mt-1"
+          class="primary-btn mt-3"
           :disabled="isAnalyzing"
         >
           Выбрать файл
@@ -49,15 +44,15 @@
       </div>
     </div>
 
-    <div v-if="effectiveError" class="mt-5 rounded-2xl border border-danger/40 bg-danger/10 p-4">
-      <p class="text-sm text-ink">{{ effectiveError }}</p>
+    <div v-if="effectiveError" class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
+      <p class="text-sm text-red-800">{{ effectiveError }}</p>
       <button type="button" class="secondary-btn mt-3" @click="openFileDialog">Выбрать другой файл</button>
     </div>
   </div>
 </template>
 
 <script>
-import { analyzeImage, analyzeVideo, analyzeDocument } from '../services/api'
+import { analyzeDocument } from '../services/api'
 
 export default {
   name: 'FileUpload',
@@ -125,12 +120,12 @@ export default {
         return
       }
 
-      const isImage = file.type.startsWith('image/')
-      const isVideo = file.type.startsWith('video/')
-      const isDocx = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || (file.name && file.name.toLowerCase().endsWith('.docx'))
+      const lowerName = (file.name || '').toLowerCase()
+      const isDocx = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || lowerName.endsWith('.docx')
+      const isPptx = file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || lowerName.endsWith('.pptx')
 
-      if (!isImage && !isVideo && !isDocx) {
-        this.error = 'Неподдерживаемый тип файла. Используйте изображения, видео или Word (.docx).'
+      if (!isDocx && !isPptx) {
+        this.error = 'Поддерживаются только документы Word (DOCX) и PowerPoint (PPTX).'
         this.$emit('analysis-error', this.error)
         return
       }
@@ -145,16 +140,8 @@ export default {
       this.$emit('analysis-error', null)
 
       try {
-        let result
         this.setProgress(24)
-
-        if (file.type.startsWith('image/')) {
-          result = await analyzeImage(file)
-        } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || (file.name && file.name.toLowerCase().endsWith('.docx'))) {
-          result = await analyzeDocument(file)
-        } else {
-          result = await analyzeVideo(file)
-        }
+        const result = await analyzeDocument(file)
 
         this.setProgress(100)
         this.$emit('file-uploaded', {
@@ -170,7 +157,7 @@ export default {
         if (!error.response) {
           this.error = 'Сервер недоступен. Проверьте запуск backend на 127.0.0.1:8000.'
         } else if (status === 404) {
-          this.error = 'Эндпоинт анализа документа не найден (404). Проверьте, что backend обновлен и маршрут /api/analyze/document доступен.'
+          this.error = 'Эндпоинт анализа офисного файла не найден (404). Проверьте, что backend обновлен и маршрут /api/analyze/document доступен.'
         } else if (status === 413) {
           this.error = 'Файл превышает допустимый размер на сервере.'
         } else {

@@ -11,8 +11,8 @@ logging.basicConfig(
 )
 
 app = FastAPI(
-    title="Deepfake Metadata Analyzer",
-    description="Веб-сервис для анализа метаданных изображений и видео и выявления ИИ-модификаций",
+    title="Анализ метаданных офисных документов",
+    description="Проверка метаданных DOCX/PPTX: автор, даты, встроенные изображения и их метаданные",
     version="1.0.0"
 )
 
@@ -30,7 +30,7 @@ root_router = APIRouter()
 
 @root_router.get("/")
 async def root():
-    return {"message": "Deepfake Metadata Analyzer API", "version": "1.0.0"}
+    return {"message": "API анализа метаданных DOCX/PPTX", "version": "1.0.0"}
 
 @root_router.get("/favicon.ico", include_in_schema=False)
 async def favicon():
@@ -42,8 +42,6 @@ async def routes_list():
         "endpoints": [
             "GET /api/health",
             "GET /api/routes",
-            "POST /api/analyze/image",
-            "POST /api/analyze/video",
             "POST /api/analyze/document",
             "GET /api/reports/{filename}",
         ]

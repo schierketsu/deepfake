@@ -43,66 +43,19 @@ class ReportGenerator:
         }
     
     def _generate_summary(
-        self, 
-        file_type: str, 
-        metadata: Dict[str, Any], 
+        self,
+        file_type: str,
+        metadata: Dict[str, Any],
         ai_indicators: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Генерация краткого резюме"""
-        summary = {
+        """Генерация краткого резюме (только для офисных документов)."""
+        return {
             "location": None,
             "date_time": None,
-            "source": None,
+            "source": metadata.get("document_metadata", {}).get("creator") or "Офисный документ",
             "ai_probability": ai_indicators.get("ai_probability", 0),
             "confidence": ai_indicators.get("confidence", "low")
         }
-        
-        if file_type == "image":
-            exif = metadata.get("exif", {})
-            
-            # Местоположение
-            if "gps" in exif:
-                gps = exif["gps"]
-                summary["location"] = f"GPS: {gps.get('latitude', 'N/A')}, {gps.get('longitude', 'N/A')}"
-            
-            # Дата и время
-            if "date_time" in exif:
-                summary["date_time"] = str(exif["date_time"])
-            
-            # Источник (камера)
-            camera_parts = []
-            if "camera_make" in exif:
-                camera_parts.append(exif["camera_make"])
-            if "camera_model" in exif:
-                camera_parts.append(exif["camera_model"])
-            if camera_parts:
-                summary["source"] = " ".join(camera_parts)
-            elif "software" in exif:
-                summary["source"] = exif["software"]
-            else:
-                summary["source"] = "Неизвестно"
-        
-        elif file_type == "video":
-            container = metadata.get("container", {})
-            video_stream = metadata.get("video_stream", {})
-            
-            # Дата создания
-            creation_time = container.get("creation_time") or video_stream.get("creation_time")
-            if creation_time:
-                summary["date_time"] = creation_time
-            
-            # Источник (encoder)
-            encoder = container.get("encoder") or video_stream.get("encoder")
-            if encoder:
-                summary["source"] = encoder
-            else:
-                codec = video_stream.get("codec_name")
-                if codec:
-                    summary["source"] = f"Кодек: {codec}"
-                else:
-                    summary["source"] = "Неизвестно"
-
-        return summary
     
     def generate_json_report(self, report_data: Dict[str, Any]) -> str:
         """Генерация JSON отчета"""
@@ -157,7 +110,7 @@ class ReportGenerator:
         
         # Заголовок
         story.append(Paragraph("АНАЛИЗ МЕТАДАННЫХ", title_style))
-        story.append(Paragraph("Выявление ИИ-модификаций в изображениях и видео", 
+        story.append(Paragraph("Проверка документов Word и PowerPoint (DOCX, PPTX)", 
                               ParagraphStyle('Subtitle', parent=styles['Normal'], 
                                            fontSize=11, alignment=TA_CENTER, 
                                            textColor=colors.HexColor('#333333'),
@@ -264,12 +217,7 @@ class ReportGenerator:
         story.append(Paragraph("<b>ДЕТАЛЬНЫЕ МЕТАДАННЫЕ</b>", heading_style))
         
         metadata = report_data.get("metadata", {})
-        if report_data.get("file_type") == "image":
-            self._add_image_metadata(story, metadata, styles, normal_style, heading_style)
-        elif report_data.get("file_type") == "document":
-            self._add_document_metadata(story, metadata, styles, normal_style, heading_style)
-        else:
-            self._add_video_metadata(story, metadata, styles, normal_style, heading_style)
+        self._add_document_metadata(story, metadata, styles, normal_style, heading_style)
         
         # Футер
         story.append(Spacer(1, 0.3*inch))
@@ -298,89 +246,20 @@ class ReportGenerator:
         doc.build(story)
         return filepath
     
-    def _add_image_metadata(self, story, metadata, styles, normal_style, heading_style):
-        """Добавление метаданных изображения в отчет"""
-        exif = metadata.get("exif", {})
-        xmp = metadata.get("xmp", {})
-        
-        # Фильтруем служебные поля
-        skip_keys = {"error", "_c2pa_metadata", "_c2pa_manifest_types", "_c2pa_key_fields", "_c2pa_key_aliases"}
-        
-        if exif:
-            # Фильтруем только значимые поля
-            exif_filtered = {k: v for k, v in exif.items() 
-                           if k not in skip_keys and v is not None and str(v).strip()}
-            
-            if exif_filtered:
-                story.append(Paragraph("<b>EXIF данные</b>", heading_style))
-                exif_data = [["Параметр", "Значение"]]
-                for key, value in sorted(exif_filtered.items()):
-                    value_str = str(value)
-                    # Ограничиваем длину для очень длинных значений
-                    if len(value_str) > 150:
-                        value_str = value_str[:147] + "..."
-                    exif_data.append([key, value_str])
-                
-                exif_table = Table(exif_data, colWidths=[2.2*inch, 4.3*inch])
-                exif_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f6')),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#262626')),
-                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 9),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-                    ('TOPPADDING', (0, 0), (-1, 0), 8),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#E9E9E9')),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('FONTSIZE', (0, 1), (-1, -1), 8),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 6),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-                    ('TOPPADDING', (0, 1), (-1, -1), 5),
-                    ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
-                ]))
-                story.append(exif_table)
-                story.append(Spacer(1, 0.25*inch))
-        
-        if xmp:
-            xmp_filtered = {k: v for k, v in xmp.items() 
-                          if k not in skip_keys and v is not None and str(v).strip()}
-            
-            if xmp_filtered:
-                story.append(Paragraph("<b>XMP данные</b>", heading_style))
-                xmp_data = [["Параметр", "Значение"]]
-                for key, value in sorted(xmp_filtered.items()):
-                    value_str = str(value)
-                    if len(value_str) > 150:
-                        value_str = value_str[:147] + "..."
-                    xmp_data.append([key, value_str])
-                
-                xmp_table = Table(xmp_data, colWidths=[2.2*inch, 4.3*inch])
-                xmp_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f6')),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#262626')),
-                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 9),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-                    ('TOPPADDING', (0, 0), (-1, 0), 8),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#E9E9E9')),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                    ('FONTSIZE', (0, 1), (-1, -1), 8),
-                    ('LEFTPADDING', (0, 0), (-1, -1), 6),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-                    ('TOPPADDING', (0, 1), (-1, -1), 5),
-                    ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
-                ]))
-                story.append(xmp_table)
+    def _add_document_metadata(self, story, metadata, styles, normal_style, heading_style):
+        """Добавление метаданных DOCX/PPTX и списка изображений в отчёт."""
+        def _escape(s):
+            if s is None:
+                return ""
+            s = str(s)
+            return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-    def _add_video_metadata(self, story, metadata, styles, normal_style, heading_style):
-        """Добавление метаданных видео в отчет"""
-        container = metadata.get("container", {})
-        video_stream = metadata.get("video_stream", {})
-        audio_stream = metadata.get("audio_stream", {})
-        
+        def _format_value(value):
+            if value is None or value == "":
+                return "N/A"
+            text = str(value)
+            return text if len(text) <= 150 else text[:147] + "..."
+
         table_style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f6')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#262626')),
@@ -398,81 +277,63 @@ class ReportGenerator:
             ('TOPPADDING', (0, 1), (-1, -1), 5),
             ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
         ])
-        
-        if container:
-            container_filtered = {k: v for k, v in container.items() 
-                                if v is not None and str(v).strip()}
-            if container_filtered:
-                story.append(Paragraph("<b>Метаданные контейнера</b>", heading_style))
-                container_data = [["Параметр", "Значение"]]
-                for key, value in sorted(container_filtered.items()):
-                    value_str = str(value)
-                    if len(value_str) > 150:
-                        value_str = value_str[:147] + "..."
-                    container_data.append([key, value_str])
-                
-                container_table = Table(container_data, colWidths=[2.2*inch, 4.3*inch])
-                container_table.setStyle(table_style)
-                story.append(container_table)
-                story.append(Spacer(1, 0.25*inch))
-        
-        if video_stream:
-            video_filtered = {k: v for k, v in video_stream.items() 
-                            if v is not None and str(v).strip()}
-            if video_filtered:
-                story.append(Paragraph("<b>Видео поток</b>", heading_style))
-                video_data = [["Параметр", "Значение"]]
-                for key, value in sorted(video_filtered.items()):
-                    value_str = str(value)
-                    if len(value_str) > 150:
-                        value_str = value_str[:147] + "..."
-                    video_data.append([key, value_str])
-                
-                video_table = Table(video_data, colWidths=[2.2*inch, 4.3*inch])
-                video_table.setStyle(table_style)
-                story.append(video_table)
-                story.append(Spacer(1, 0.25*inch))
-        
-        if audio_stream:
-            audio_filtered = {k: v for k, v in audio_stream.items() 
-                           if v is not None and str(v).strip()}
-            if audio_filtered:
-                story.append(Paragraph("<b>Аудио поток</b>", heading_style))
-                audio_data = [["Параметр", "Значение"]]
-                for key, value in sorted(audio_filtered.items()):
-                    value_str = str(value)
-                    if len(value_str) > 150:
-                        value_str = value_str[:147] + "..."
-                    audio_data.append([key, value_str])
-                
-                audio_table = Table(audio_data, colWidths=[2.2*inch, 4.3*inch])
-                audio_table.setStyle(table_style)
-                story.append(audio_table)
 
-    def _add_document_metadata(self, story, metadata, styles, normal_style, heading_style):
-        """Добавление в отчёт результатов анализа изображений из Word-документа"""
-        def _escape(s):
-            if s is None:
-                return ""
-            s = str(s)
-            return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-
+        document_type = metadata.get("document_type", "word")
+        document_label = "PowerPoint" if document_type == "powerpoint" else "Word"
+        document_meta = metadata.get("document_metadata", {}) or {}
         images = metadata.get("images", [])
         images_count = metadata.get("images_count", 0)
         images_with_ai = metadata.get("images_with_ai_count", 0)
 
+        story.append(Paragraph(f"<b>Документ:</b> {document_label}", normal_style))
+        story.append(Spacer(1, 0.1*inch))
+
+        meta_rows = [["Параметр", "Значение"]]
+        meta_fields = [
+            ("Автор", document_meta.get("creator")),
+            ("Последний редактор", document_meta.get("last_modified_by")),
+            ("Дата создания", document_meta.get("created")),
+            ("Дата изменения", document_meta.get("modified")),
+            ("Дата печати", document_meta.get("last_printed")),
+            ("Ревизия", document_meta.get("revision")),
+            ("Приложение", document_meta.get("application")),
+            ("Версия приложения", document_meta.get("app_version")),
+            ("Страницы", document_meta.get("pages")),
+            ("Слайды", document_meta.get("slides")),
+            ("Слова", document_meta.get("words")),
+            ("Символы", document_meta.get("characters")),
+            ("Символы с пробелами", document_meta.get("characters_with_spaces")),
+        ]
+
+        for label, value in meta_fields:
+            if value is not None and str(value).strip():
+                meta_rows.append([label, _format_value(value)])
+
+        if len(meta_rows) > 1:
+            story.append(Paragraph("<b>Свойства документа</b>", heading_style))
+            meta_table = Table(meta_rows, colWidths=[2.2*inch, 4.3*inch])
+            meta_table.setStyle(table_style)
+            story.append(meta_table)
+            story.append(Spacer(1, 0.2*inch))
+
         story.append(Paragraph(
-            f"<b>Документ Word:</b> извлечено изображений — {images_count}, "
-            f"с признаками ИИ — {images_with_ai}.",
+            f"<b>Встроенные изображения:</b> {images_count}, с признаками ИИ — {images_with_ai}.",
             normal_style
         ))
-        story.append(Spacer(1, 0.2*inch))
+        story.append(Spacer(1, 0.15*inch))
 
         for i, img in enumerate(images):
             fname = _escape(img.get("filename", f"image_{i+1}"))
+            source_path = _escape(img.get("archive_path", ""))
             ai_ind = img.get("ai_indicators", {})
             prob = ai_ind.get("ai_probability", 0)
-            story.append(Paragraph(f"<b>Изображение {i+1}:</b> {fname} — вероятность ИИ {prob}%", heading_style))
+
+            story.append(Paragraph(
+                f"<b>Изображение {i + 1}:</b> {fname} — вероятность ИИ {prob}%",
+                heading_style
+            ))
+            if source_path:
+                story.append(Paragraph(f"Путь в архиве: {_escape(source_path)}", normal_style))
             if ai_ind.get("software_detected"):
                 story.append(Paragraph(
                     "Обнаруженное ПО: " + _escape(", ".join(ai_ind["software_detected"])),
@@ -480,4 +341,4 @@ class ReportGenerator:
                 ))
             for anom in ai_ind.get("anomalies", []):
                 story.append(Paragraph("• " + _escape(anom), normal_style))
-            story.append(Spacer(1, 0.15*inch))
+            story.append(Spacer(1, 0.12*inch))

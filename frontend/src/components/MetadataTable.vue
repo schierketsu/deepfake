@@ -1,61 +1,83 @@
 <template>
   <div class="space-y-4">
     <template v-if="fileType === 'document'">
-      <div class="card-soft p-5">
-        <h4 class="text-heading-lg font-bold text-ink">Изображения в документе</h4>
-        <p class="mt-1 text-sm text-soft-700">
-          Всего: {{ metadata.images_count || 0 }}, с признаками ИИ: {{ metadata.images_with_ai_count || 0 }}
-        </p>
-      </div>
-
-      <div v-if="(metadata.images || []).length === 0" class="card-soft p-5 text-sm text-soft-700">
-        В документе не найдено извлеченных изображений.
-      </div>
-
-      <div
-        v-for="(img, index) in (metadata.images || [])"
-        :key="`doc-image-${index}`"
-        class="card-soft p-5"
-      >
-        <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <p class="font-semibold text-ink break-words">{{ index + 1 }}. {{ img.filename || 'Без имени' }}</p>
-          <span class="status-chip bg-soft-900 text-accent-300">
-            ИИ: {{ (img.ai_indicators && img.ai_indicators.ai_probability) ?? 0 }}%
-          </span>
-        </div>
-
-        <p v-if="img.ai_indicators && img.ai_indicators.software_detected && img.ai_indicators.software_detected.length" class="text-sm text-soft-700">
-          ПО: {{ img.ai_indicators.software_detected.join(', ') }}
-        </p>
-        <ul v-if="img.ai_indicators && img.ai_indicators.anomalies && img.ai_indicators.anomalies.length" class="mt-2 list-disc space-y-1 pl-5 text-sm text-soft-700">
-          <li v-for="(anom, ai) in img.ai_indicators.anomalies" :key="ai">{{ anom }}</li>
-        </ul>
-      </div>
-    </template>
-
-    <template v-else>
-      <div
-        v-for="section in sections"
-        :key="section.title"
-        class="card-soft overflow-hidden"
-      >
-        <div class="border-b border-soft-300 bg-soft-100 px-4 py-3">
-          <h4 class="font-semibold text-ink">{{ section.title }}</h4>
-        </div>
-        <div v-if="section.rows.length > 0" class="divide-y divide-soft-200 bg-soft-50">
+      <div class="card p-4">
+        <h4 class="font-polonium text-xl font-bold text-gray-900">О документе</h4>
+        <div v-if="documentMetaRows.length" class="mt-3 divide-y divide-gray-200">
           <div
-            v-for="(row, idx) in section.rows"
-            :key="`${section.title}-${idx}`"
-            class="grid gap-2 px-4 py-3 md:grid-cols-[220px_1fr]"
+            v-for="(row, idx) in documentMetaRows"
+            :key="`doc-meta-${idx}`"
+            class="grid gap-2 py-2 sm:grid-cols-[180px_1fr]"
           >
-            <div class="text-sm font-semibold text-soft-700">{{ row.key }}</div>
-            <div class="break-words font-mono text-sm text-ink">{{ row.value }}</div>
+            <div class="text-sm font-medium text-gray-600">{{ row.key }}</div>
+            <div class="break-words text-sm font-mono text-gray-900">{{ row.value }}</div>
           </div>
         </div>
-        <div v-else class="px-4 py-6 text-sm text-soft-700 bg-soft-50">
-          Данные в этой секции отсутствуют.
-        </div>
+        <p v-else class="mt-3 text-sm text-gray-500">Свойства не найдены.</p>
       </div>
+
+      <template v-if="!showOnlyDocumentMeta">
+        <div class="card p-4">
+          <h4 class="font-polonium text-xl font-bold text-gray-900">Изображения в документе</h4>
+          <p class="mt-1 text-sm text-gray-500">
+            Всего: {{ metadata.images_count || 0 }}, с признаками ИИ: {{ metadata.images_with_ai_count || 0 }}
+          </p>
+        </div>
+
+        <div v-if="(metadata.images || []).length === 0" class="card p-4 text-sm text-gray-500">
+          В документе нет извлечённых изображений.
+        </div>
+
+        <div
+          v-for="(img, index) in (metadata.images || [])"
+          :key="`doc-image-${index}`"
+          class="card p-4"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="font-medium text-gray-900 break-words">{{ index + 1 }}. {{ img.filename || 'Без имени' }}</p>
+            <div class="flex items-center gap-2">
+              <span class="status-chip">ИИ: {{ (img.ai_indicators && img.ai_indicators.ai_probability) ?? 0 }}%</span>
+              <button type="button" class="secondary-btn px-2 py-1 text-xs" @click="toggleImageExpanded(index)">
+                {{ isImageExpanded(index) ? 'Скрыть' : 'Подробнее' }}
+              </button>
+            </div>
+          </div>
+          <p v-if="img.archive_path" class="mt-1 text-xs text-gray-500">Путь: {{ img.archive_path }}</p>
+          <p v-if="img.size" class="text-xs text-gray-500">Размер: {{ formatFileSize(img.size) }}</p>
+          <p v-if="img.ai_indicators && img.ai_indicators.software_detected && img.ai_indicators.software_detected.length" class="text-sm text-gray-600">
+            ПО: {{ img.ai_indicators.software_detected.join(', ') }}
+          </p>
+          <ul v-if="img.ai_indicators && img.ai_indicators.anomalies && img.ai_indicators.anomalies.length" class="mt-1 list-disc list-inside text-sm text-gray-600">
+            <li v-for="(anom, ai) in img.ai_indicators.anomalies" :key="ai">{{ anom }}</li>
+          </ul>
+
+          <div v-if="isImageExpanded(index)" class="mt-4 space-y-3 border-t border-gray-200 pt-4">
+            <h5 class="font-polonium text-lg font-bold text-gray-700">Метаданные изображения</h5>
+            <div v-if="buildImageSections(img.metadata).length === 0" class="text-sm text-gray-500">
+              Нет детальных метаданных.
+            </div>
+            <div
+              v-for="section in buildImageSections(img.metadata)"
+              :key="`${section.title}-${index}`"
+              class="rounded-lg border border-gray-200 bg-gray-50 overflow-hidden"
+            >
+              <div class="border-b border-gray-200 bg-gray-100 px-3 py-2">
+                <h6 class="font-polonium text-xl font-bold text-gray-900">{{ section.title }}</h6>
+              </div>
+              <div v-if="section.rows.length > 0" class="divide-y divide-gray-200">
+                <div
+                  v-for="(row, rowIdx) in section.rows"
+                  :key="`${section.title}-${index}-${rowIdx}`"
+                  class="grid gap-2 px-3 py-2 sm:grid-cols-[180px_1fr]"
+                >
+                  <div class="text-sm font-medium text-gray-600">{{ row.key }}</div>
+                  <div class="break-words text-sm font-mono text-gray-900">{{ row.value }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
     </template>
   </div>
 </template>
@@ -71,21 +93,41 @@ export default {
     fileType: {
       type: String,
       required: true
+    },
+    showOnlyDocumentMeta: {
+      type: Boolean,
+      default: false
+    }
+  },
+  data() {
+    return {
+      expandedImageIndexes: []
     }
   },
   computed: {
-    groupedMetadata() {
-      if (!this.metadata.exif || !this.metadata.exif._grouped_metadata) return null
-      const grouped = this.metadata.exif._grouped_metadata
-      if (typeof grouped !== 'object' || grouped === null) return null
+    documentTypeLabel() {
+      if (this.metadata?.document_type === 'powerpoint') return 'PowerPoint'
+      if (this.metadata?.document_type === 'word') return 'Word'
+      return 'Офисный документ'
+    },
+    documentMetaRows() {
+      if (this.fileType !== 'document') return []
+      const source = this.metadata?.document_metadata
+      if (!source || typeof source !== 'object') return []
 
-      const filtered = {}
-      for (const [sectionName, sectionData] of Object.entries(grouped)) {
-        if (Array.isArray(sectionData) && sectionData.length > 0) {
-          filtered[sectionName] = sectionData
-        }
-      }
-      return Object.keys(filtered).length ? filtered : null
+      const map = [
+        ['creator', 'Автор'],
+        ['last_modified_by', 'Последний редактор'],
+        ['created', 'Создан'],
+        ['modified', 'Изменен']
+      ]
+
+      return map
+        .filter(([key]) => this.hasValue(source[key]))
+        .map(([key, label]) => ({ key: label, value: this.formatValue(source[key], key) }))
+    },
+    groupedMetadata() {
+      return this.getGroupedMetadata(this.metadata)
     },
     sections() {
       if (this.fileType === 'video') {
@@ -129,6 +171,73 @@ export default {
     }
   },
   methods: {
+    isImageExpanded(index) {
+      return this.expandedImageIndexes.includes(index)
+    },
+    toggleImageExpanded(index) {
+      if (this.isImageExpanded(index)) {
+        this.expandedImageIndexes = this.expandedImageIndexes.filter((item) => item !== index)
+        return
+      }
+      this.expandedImageIndexes = [...this.expandedImageIndexes, index]
+    },
+    getGroupedMetadata(sourceMetadata) {
+      if (!sourceMetadata || !sourceMetadata.exif || !sourceMetadata.exif._grouped_metadata) return null
+      const grouped = sourceMetadata.exif._grouped_metadata
+      if (typeof grouped !== 'object' || grouped === null) return null
+
+      const filtered = {}
+      for (const [sectionName, sectionData] of Object.entries(grouped)) {
+        if (Array.isArray(sectionData) && sectionData.length > 0) {
+          filtered[sectionName] = sectionData
+        }
+      }
+      return Object.keys(filtered).length ? filtered : null
+    },
+    buildImageSections(imageMetadata) {
+      if (!imageMetadata || typeof imageMetadata !== 'object') return []
+
+      const grouped = this.getGroupedMetadata(imageMetadata)
+      if (grouped) {
+        return Object.entries(grouped).map(([sectionName, sectionData]) => {
+          const rows = sectionData.map((item) => ({
+            key: this.formatGroupedKey(item),
+            value: this.formatGroupedValue(item)
+          }))
+          return { title: sectionName, rows }
+        })
+      }
+
+      const filteredExif = this.filterObject(
+        imageMetadata.exif,
+        (key, value) => key !== 'error' && !key.startsWith('_') && this.hasValue(value)
+      )
+      const filteredXmp = this.filterObject(
+        imageMetadata.xmp,
+        (key, value) => key !== 'error' && this.hasValue(value)
+      )
+      const filteredCharacteristics = this.filterObject(
+        imageMetadata.image_characteristics,
+        (key, value) => !['suspicious_features', 'error'].includes(key) && this.hasValue(value)
+      )
+
+      return [
+        this.buildSection('EXIF данные', filteredExif),
+        this.buildSection('XMP данные', filteredXmp),
+        this.buildSection('Характеристики изображения', filteredCharacteristics)
+      ].filter(Boolean)
+    },
+    formatFileSize(bytes) {
+      if (typeof bytes !== 'number' || bytes <= 0) return 'N/A'
+      const units = ['B', 'KB', 'MB', 'GB']
+      let size = bytes
+      let index = 0
+      while (size >= 1024 && index < units.length - 1) {
+        size /= 1024
+        index += 1
+      }
+      return `${size.toFixed(index === 0 ? 0 : 2)} ${units[index]}`
+    },
     buildSection(title, source) {
       if (!source || typeof source !== 'object') return null
       const rows = Object.entries(source).map(([key, value]) => ({

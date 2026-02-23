@@ -15,7 +15,7 @@ class AIMetadata(BaseModel):
     evidence_from_metadata: Optional[List[str]] = None  # Факты из C2PA/метаданных
 
 class AnalysisResponse(BaseModel):
-    file_type: str  # "image" or "video"
+    file_type: str  # "document" (DOCX/PPTX)
     summary: Summary
     metadata: Dict[str, Any]
     ai_indicators: AIMetadata
