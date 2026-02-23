@@ -1,12 +1,9 @@
 <template>
   <div class="space-y-4">
     <div class="card p-4">
-      <h4 class="font-polonium text-xl font-bold text-gray-900">Изображение {{ imageIndex + 1 }}: {{ image.filename || 'Без имени' }}</h4>
-      <div class="mt-2 flex flex-wrap items-center gap-2">
-        <span class="status-chip">ИИ: {{ aiProbability }}%</span>
+      <div class="flex flex-wrap items-center gap-2">
+        <span :class="['status-chip', aiChipClass(aiProbability)]">ИИ: {{ aiProbability }}%</span>
       </div>
-      <p v-if="image.archive_path" class="mt-1 text-xs text-gray-500">Путь: {{ image.archive_path }}</p>
-      <p v-if="image.size" class="text-xs text-gray-500">Размер: {{ formatFileSize(image.size) }}</p>
       <p v-if="softwareDetected" class="text-sm text-gray-600">ПО: {{ softwareDetected }}</p>
       <ul v-if="anomalies.length" class="mt-1 list-disc list-inside text-sm text-gray-600">
         <li v-for="(anom, ai) in anomalies" :key="ai">{{ anom }}</li>
@@ -71,6 +68,12 @@ export default {
     }
   },
   methods: {
+    aiChipClass(pct) {
+      const n = Number(pct)
+      if (n < 35) return 'status-chip-ai-low'
+      if (n <= 70) return 'status-chip-ai-mid'
+      return 'status-chip-ai-high'
+    },
     formatFileSize(bytes) {
       if (typeof bytes !== 'number' || bytes <= 0) return 'N/A'
       const units = ['B', 'KB', 'MB', 'GB']

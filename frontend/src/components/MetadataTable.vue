@@ -2,15 +2,49 @@
   <div class="space-y-4">
     <template v-if="fileType === 'document'">
       <div class="card p-4">
-        <h4 class="font-polonium text-xl font-bold text-gray-900">О документе</h4>
-        <div v-if="documentMetaRows.length" class="mt-3 divide-y divide-gray-200">
-          <div
-            v-for="(row, idx) in documentMetaRows"
-            :key="`doc-meta-${idx}`"
-            class="grid gap-2 py-2 sm:grid-cols-[180px_1fr]"
-          >
-            <div class="text-sm font-medium text-gray-600">{{ row.key }}</div>
-            <div class="break-words text-sm font-mono text-gray-900">{{ row.value }}</div>
+        <div v-if="documentMetaRows.length" class="grid gap-6 sm:grid-cols-[1fr_1.5fr] items-start">
+          <div>
+            <h4 class="font-polonium text-xl font-bold text-gray-900 mb-3">О документе</h4>
+            <div
+              v-for="(row, idx) in documentMetaRowsText"
+              :key="`doc-meta-t-${idx}`"
+              class="flex flex-col gap-1 py-2"
+            >
+              <div class="text-sm font-medium text-gray-600">{{ row.key }}</div>
+              <div class="break-words text-sm font-mono text-gray-900">{{ row.value }}</div>
+            </div>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div
+              v-for="(row, idx) in documentMetaRowsDates"
+              :key="`doc-meta-d-${idx}`"
+              class="flex flex-col gap-2"
+            >
+              <div class="text-sm font-medium text-gray-600">{{ row.key }}</div>
+              <div class="flex flex-col gap-2">
+                <div v-if="getCalendarMonth(row.value)" class="inline-flex w-fit max-w-[280px] flex-col rounded-lg border border-gray-200 bg-white p-3">
+                  <div class="mb-2 text-center text-sm font-medium text-gray-700">
+                    {{ getCalendarMonth(row.value).monthName }} {{ getCalendarMonth(row.value).year }}
+                  </div>
+                  <div class="grid grid-cols-7 gap-px text-center text-xs">
+                    <div v-for="w in 7" :key="`wd-${w}`" class="py-1 font-medium text-gray-500">
+                      {{ ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'][w - 1] }}
+                    </div>
+                    <template v-for="(week, wi) in getCalendarMonth(row.value).weeks" :key="`w-${wi}`">
+                      <div
+                        v-for="(day, di) in week"
+                        :key="`d-${wi}-${di}`"
+                        class="flex h-8 w-8 items-center justify-center rounded text-xs"
+                        :class="day === getCalendarMonth(row.value).highlightDay ? 'bg-[#212121] text-[#FFF5E5] font-semibold' : day ? 'text-gray-700' : 'text-gray-300'"
+                      >
+                        {{ day || '' }}
+                      </div>
+                    </template>
+                  </div>
+                  <div class="mt-2 text-center text-sm text-gray-500">{{ daysAgoLabel(row.value) }}</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <p v-else class="mt-3 text-sm text-gray-500">Свойства не найдены.</p>
@@ -36,7 +70,7 @@
           <div class="flex flex-wrap items-center justify-between gap-2">
             <p class="font-medium text-gray-900 break-words">{{ index + 1 }}. {{ img.filename || 'Без имени' }}</p>
             <div class="flex items-center gap-2">
-              <span class="status-chip">ИИ: {{ (img.ai_indicators && img.ai_indicators.ai_probability) ?? 0 }}%</span>
+              <span :class="['status-chip', aiChipClass((img.ai_indicators && img.ai_indicators.ai_probability) ?? 0)]">ИИ: {{ (img.ai_indicators && img.ai_indicators.ai_probability) ?? 0 }}%</span>
               <button type="button" class="secondary-btn px-2 py-1 text-xs" @click="toggleImageExpanded(index)">
                 {{ isImageExpanded(index) ? 'Скрыть' : 'Подробнее' }}
               </button>
@@ -124,7 +158,17 @@ export default {
 
       return map
         .filter(([key]) => this.hasValue(source[key]))
-        .map(([key, label]) => ({ key: label, value: this.formatValue(source[key], key) }))
+        .map(([key, label]) => ({ rawKey: key, key: label, value: source[key] }))
+    },
+    documentMetaRowsText() {
+      return this.documentMetaRows.filter(
+        (row) => row.rawKey !== 'created' && row.rawKey !== 'modified'
+      )
+    },
+    documentMetaRowsDates() {
+      return this.documentMetaRows.filter(
+        (row) => row.rawKey === 'created' || row.rawKey === 'modified'
+      )
     },
     groupedMetadata() {
       return this.getGroupedMetadata(this.metadata)
@@ -227,6 +271,12 @@ export default {
         this.buildSection('Характеристики изображения', filteredCharacteristics)
       ].filter(Boolean)
     },
+    aiChipClass(pct) {
+      const n = Number(pct)
+      if (n < 35) return 'status-chip-ai-low'
+      if (n <= 70) return 'status-chip-ai-mid'
+      return 'status-chip-ai-high'
+    },
     formatFileSize(bytes) {
       if (typeof bytes !== 'number' || bytes <= 0) return 'N/A'
       const units = ['B', 'KB', 'MB', 'GB']
@@ -296,6 +346,54 @@ export default {
         }
       }
       return 'N/A'
+    },
+    getCalendarMonth(isoString) {
+      if (!isoString || typeof isoString !== 'string') return null
+      const d = new Date(isoString)
+      if (Number.isNaN(d.getTime())) return null
+      const year = d.getFullYear()
+      const month = d.getMonth()
+      const dayOfDate = d.getDate()
+      const first = new Date(year, month, 1)
+      const last = new Date(year, month + 1, 0)
+      const daysInMonth = last.getDate()
+      const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
+      const firstWeekday = (first.getDay() + 6) % 7
+      const cells = []
+      for (let i = 0; i < 42; i++) {
+        if (i < firstWeekday || i >= firstWeekday + daysInMonth) cells.push(null)
+        else cells.push(i - firstWeekday + 1)
+      }
+      const weeks = []
+      for (let r = 0; r < 6; r++) weeks.push(cells.slice(r * 7, (r + 1) * 7))
+      return { monthName: monthNames[month], year, weeks, highlightDay: dayOfDate }
+    },
+    formatCalendarDate(isoString) {
+      if (!isoString || typeof isoString !== 'string') return '—'
+      const d = new Date(isoString)
+      if (Number.isNaN(d.getTime())) return isoString
+      const day = String(d.getDate()).padStart(2, '0')
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const year = d.getFullYear()
+      return `${day}.${month}.${year}`
+    },
+    daysAgoLabel(isoString) {
+      if (!isoString || typeof isoString !== 'string') return ''
+      const d = new Date(isoString)
+      if (Number.isNaN(d.getTime())) return ''
+      const now = new Date()
+      const diffMs = now - d
+      const days = Math.floor(diffMs / (24 * 60 * 60 * 1000))
+      if (days < 0) return 'через ' + this.pluralDays(Math.abs(days))
+      if (days === 0) return 'сегодня'
+      return this.pluralDays(days) + ' назад'
+    },
+    pluralDays(n) {
+      const mod10 = n % 10
+      const mod100 = n % 100
+      if (mod10 === 1 && mod100 !== 11) return n + ' день'
+      if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return n + ' дня'
+      return n + ' дней'
     },
     formatValue(value, key) {
       if (value === null || value === undefined) return 'N/A'

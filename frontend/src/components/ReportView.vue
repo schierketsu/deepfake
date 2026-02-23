@@ -8,13 +8,6 @@
           <p>{{ formatFileSize(fileInfo.size) }}</p>
         </div>
       </div>
-      <img
-        v-if="documentLogo"
-        :src="documentLogo"
-        :alt="documentTypeLabel"
-        class="h-8 w-auto object-contain"
-      />
-      <span v-else class="text-sm text-gray-600">{{ documentTypeLabel }}</span>
     </div>
 
     <div class="mb-6">
@@ -43,7 +36,7 @@
             @click="selectedId = index"
           >
             <span class="results-nav-item-label">{{ index + 1 }}. {{ img.filename || 'Без имени' }}</span>
-            <span class="status-chip text-xs">ИИ: {{ (img.ai_indicators && img.ai_indicators.ai_probability) ?? 0 }}%</span>
+            <span :class="['status-chip', 'text-xs', aiChipClass((img.ai_indicators && img.ai_indicators.ai_probability) ?? 0)]">ИИ: {{ (img.ai_indicators && img.ai_indicators.ai_probability) ?? 0 }}%</span>
           </button>
         </nav>
         <p v-if="!(result.metadata?.images || []).length" class="text-sm text-gray-500">Нет изображений</p>
@@ -67,8 +60,6 @@
 import MetadataTable from './MetadataTable.vue'
 import ImageDetailPanel from './ImageDetailPanel.vue'
 import { getReport } from '../services/api'
-import logowordUrl from '../public/logoword.png'
-import logopptxUrl from '../public/logopptx.png'
 
 export default {
   name: 'ReportView',
@@ -94,12 +85,6 @@ export default {
       if (t === 'powerpoint') return 'PowerPoint'
       if (t === 'word') return 'Word'
       return 'Документ'
-    },
-    documentLogo() {
-      const t = this.result.metadata?.document_type
-      if (t === 'word') return logowordUrl
-      if (t === 'powerpoint') return logopptxUrl
-      return null
     },
     selectedImage() {
       const images = this.result.metadata?.images || []
@@ -130,6 +115,12 @@ export default {
       const sizes = ['Bytes', 'KB', 'MB', 'GB']
       const i = Math.floor(Math.log(bytes) / Math.log(k))
       return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+    },
+    aiChipClass(pct) {
+      const n = Number(pct)
+      if (n < 35) return 'status-chip-ai-low'
+      if (n <= 70) return 'status-chip-ai-mid'
+      return 'status-chip-ai-high'
     },
     getProbabilityLabel(probability) {
       if (probability < 30) return 'Низкая вероятность'
