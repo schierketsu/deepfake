@@ -1,26 +1,58 @@
 <template>
-  <div class="content-block p-5 sm:p-6">
-    <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
-      <div>
-        <h2 class="font-polonium text-3xl font-bold text-gray-900">Результаты проверки</h2>
-        <div v-if="fileInfo" class="mt-1 text-sm text-gray-500">
-          <p class="font-medium text-gray-900 break-words">{{ fileInfo.name }}</p>
-          <p>{{ formatFileSize(fileInfo.size) }}</p>
+  <div class="report-view">
+  <div class="report-view-shell px-5 pt-5 sm:px-6 sm:pt-6 pb-5 sm:pb-6">
+    <div class="mb-6 space-y-6">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div class="min-w-0">
+          <h2 class="font-polonium text-3xl font-bold text-gray-900">Результаты проверки</h2>
+          <p v-if="fileInfo" class="mt-1 text-sm text-gray-500">
+            <span class="font-medium text-gray-900 break-words">{{ fileInfo.name }}</span>
+            <span class="text-gray-500"> · {{ formatFileSize(fileInfo.size) }}</span>
+          </p>
+          <div
+            v-if="documentAuthorRows.length"
+            class="mt-3 flex min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:gap-6"
+          >
+            <div
+              v-for="(row, idx) in documentAuthorRows"
+              :key="`author-${idx}`"
+              class="flex w-full min-w-0 flex-col gap-1 sm:w-auto"
+            >
+              <div class="text-sm font-medium text-gray-600">{{ row.label }}</div>
+              <div class="break-words text-sm font-mono text-gray-900">{{ row.value }}</div>
+            </div>
+          </div>
         </div>
+        <aside v-if="documentScores" class="w-full shrink-0 sm:w-max sm:max-w-none sm:self-start">
+          <dl class="report-doc-summary__metrics font-polonium font-bold uppercase tracking-[0.1em] text-gray-900">
+            <div class="report-doc-summary__row">
+              <dt class="text-sm sm:text-base">Эвристика</dt>
+              <dd class="text-base sm:text-lg">{{ documentScores.meta }}</dd>
+            </div>
+            <div class="report-doc-summary__row">
+              <dt class="text-sm sm:text-base">ML</dt>
+              <dd class="text-base sm:text-lg">{{ documentScores.vis }}</dd>
+            </div>
+            <div class="report-doc-summary__row">
+              <dt class="text-sm sm:text-base">Итог</dt>
+              <dd class="text-base sm:text-lg">{{ documentScores.fin }}</dd>
+            </div>
+          </dl>
+        </aside>
       </div>
-    </div>
 
-    <div class="mb-6">
-      <MetadataTable :metadata="result.metadata" :file-type="result.file_type" :show-only-document-meta="true" />
-    </div>
+      <div class="-mt-2 sm:-mt-3">
+        <MetadataTable :metadata="result.metadata" :file-type="result.file_type" :show-only-document-meta="true" />
+      </div>
 
-    <div v-if="evidenceList.length > 0" class="card p-4 mb-6">
-      <h3 class="font-polonium text-xl font-bold text-gray-900">Факты из метаданных</h3>
-      <ul class="mt-3 space-y-2">
-        <li v-for="(fact, index) in evidenceList" :key="index" class="text-sm text-gray-700 border-l-2 border-gray-200 pl-3">
-          <span v-for="(paragraph, pIndex) in formatFactText(fact)" :key="pIndex">{{ paragraph }}{{ pIndex < formatFactText(fact).length - 1 ? '. ' : '' }}</span>
-        </li>
-      </ul>
+      <div v-if="evidenceList.length > 0" class="card p-4">
+        <h3 class="font-polonium text-xl font-bold text-gray-900">Факты из метаданных</h3>
+        <ul class="mt-3 space-y-2">
+          <li v-for="(fact, index) in evidenceList" :key="index" class="text-sm text-gray-700 border-l-2 border-gray-200 pl-3">
+            <span v-for="(paragraph, pIndex) in formatFactText(fact)" :key="pIndex">{{ paragraph }}{{ pIndex < formatFactText(fact).length - 1 ? '. ' : '' }}</span>
+          </li>
+        </ul>
+      </div>
     </div>
 
     <div class="results-two-column mb-6">
@@ -53,10 +85,17 @@
       </div>
     </div>
 
-    <div class="grid gap-3 sm:grid-cols-2">
-      <button @click="handleExportPDF" class="primary-btn w-full">Скачать PDF</button>
-      <button @click="handleExportJSON" class="secondary-btn w-full">Скачать JSON</button>
+    <div class="report-actions-row grid gap-3 sm:grid-cols-2 mt-6">
+      <button type="button" @click="handleExportPDF" class="primary-btn w-full">Скачать PDF</button>
+      <button type="button" @click="handleExportJSON" class="secondary-btn w-full">Скачать JSON</button>
     </div>
+
+    <p class="mt-2 text-xs text-gray-500 leading-snug">
+      Оценки носят вероятностный характер. Эвристика и ML используют только метаданные файла (табличные признаки),
+      не анализируют «сюжет» изображения.
+    </p>
+  </div>
+  <div class="report-footer-band full-bleed" aria-hidden="true" />
   </div>
 </template>
 
@@ -134,6 +173,39 @@ export default {
     },
     fileInfo() {
       return this.result.fileInfo || null
+    },
+    documentAuthorRows() {
+      if (this.result.file_type !== 'document') return []
+      const source = this.result.metadata?.document_metadata
+      if (!source || typeof source !== 'object') return []
+      const map = [
+        ['creator', 'Автор'],
+        ['last_modified_by', 'Последний редактор']
+      ]
+      const has = (v) => v !== null && v !== undefined && v !== ''
+      return map
+        .filter(([key]) => has(source[key]))
+        .map(([key, label]) => ({ label, value: source[key] }))
+    },
+    documentScores() {
+      const s = this.result.summary
+      const ai = this.result.ai_indicators
+      if (!s && !ai) return null
+      const meta = s && s.metadata_score != null ? `${s.metadata_score}%` : (ai && ai.metadata_score != null ? `${ai.metadata_score}%` : '—')
+      let vis = '—'
+      if (s && s.metadata_ml_available && s.ml_metadata_score != null) vis = `${s.ml_metadata_score}%`
+      else if (s && s.metadata_ml_available === false) vis = '— (модель не загружена)'
+      else if (ai && ai.metadata_ml_available && ai.ml_metadata_score != null) vis = `${ai.ml_metadata_score}%`
+      else if (ai && ai.metadata_ml_available === false) vis = '— (модель не загружена)'
+      const fin =
+        s && s.final_score != null
+          ? `${s.final_score}%`
+          : s && s.ai_probability != null
+            ? `${s.ai_probability}%`
+            : ai && ai.final_score != null
+              ? `${ai.final_score}%`
+              : '—'
+      return { meta, vis, fin }
     }
   },
   methods: {

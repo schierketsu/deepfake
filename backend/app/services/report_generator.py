@@ -1,253 +1,555 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle,
+    PageBreak,
+    KeepTogether,
+)
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 import json
 import os
 import tempfile
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple, List
 from datetime import datetime
 
-# Единая папка для PDF-отчётов (используется и в routes.get_report)
 REPORTS_DIR = os.path.join(tempfile.gettempdir(), "deepfake_reports")
+
+_UNICODE_FONT_REG: Optional[str] = None
+_UNICODE_FONT_BOLD: Optional[str] = None
+
+# Цвета оформления
+_COLOR_TEXT = colors.HexColor("#111827")
+_COLOR_MUTED = colors.HexColor("#6b7280")
+_COLOR_BORDER = colors.HexColor("#e5e7eb")
+_COLOR_HEADER_BG = colors.HexColor("#374151")
+_COLOR_HEADER_TX = colors.HexColor("#f9fafb")
+_COLOR_ROW_ALT = colors.HexColor("#f9fafb")
+_COLOR_ROW = colors.white
+
+
+def _content_width() -> float:
+    """Ширина области текста A4 с полями 0.75\" слева/справа."""
+    return A4[0] - 1.5 * inch
+
+
+def _register_unicode_pdf_fonts() -> Tuple[str, str]:
+    """Регистрирует TTF с кириллицей; иначе fallback на Helvetica (латиница)."""
+    global _UNICODE_FONT_REG, _UNICODE_FONT_BOLD
+    if _UNICODE_FONT_REG is not None:
+        return _UNICODE_FONT_REG, _UNICODE_FONT_BOLD or _UNICODE_FONT_REG
+
+    windir = os.environ.get("WINDIR", r"C:\Windows")
+    regular_candidates = [
+        os.path.join(windir, "Fonts", "arial.ttf"),
+        os.path.join(windir, "Fonts", "Arial.ttf"),
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/Library/Fonts/Arial Unicode.ttf",
+        "/Library/Fonts/Arial.ttf",
+    ]
+    bold_candidates = [
+        os.path.join(windir, "Fonts", "arialbd.ttf"),
+        os.path.join(windir, "Fonts", "Arialbd.ttf"),
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/Library/Fonts/Arial Bold.ttf",
+    ]
+
+    reg_path = next((p for p in regular_candidates if p and os.path.isfile(p)), None)
+    bold_path = next((p for p in bold_candidates if p and os.path.isfile(p)), None)
+
+    name = "DeepfakeReportSans"
+    name_bold = "DeepfakeReportSans-Bold"
+
+    if reg_path:
+        try:
+            pdfmetrics.registerFont(TTFont(name, reg_path))
+            _UNICODE_FONT_REG = name
+            if bold_path:
+                pdfmetrics.registerFont(TTFont(name_bold, bold_path))
+                _UNICODE_FONT_BOLD = name_bold
+            else:
+                _UNICODE_FONT_BOLD = name
+            pdfmetrics.registerFontFamily(
+                name,
+                normal=name,
+                bold=name_bold if bold_path else name,
+                italic=name,
+                boldItalic=name_bold if bold_path else name,
+            )
+            return _UNICODE_FONT_REG, _UNICODE_FONT_BOLD
+        except Exception:
+            pass
+
+    _UNICODE_FONT_REG = "Helvetica"
+    _UNICODE_FONT_BOLD = "Helvetica-Bold"
+    return _UNICODE_FONT_REG, _UNICODE_FONT_BOLD
+
+
+def _hr_line(w: float) -> Table:
+    """Тонкая разделительная линия на всю ширину."""
+    t = Table([[""]], colWidths=[w], rowHeights=[1])
+    t.setStyle(
+        TableStyle(
+            [
+                ("LINEABOVE", (0, 0), (-1, -1), 0.75, _COLOR_BORDER),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+    return t
+
+
+def _section_banner(title: str, font_bold: str, width: float) -> Table:
+    """Заголовок раздела: тёмная полоса на всю ширину, как шапка таблиц."""
+    p = Paragraph(
+        title,
+        ParagraphStyle(
+            "SectionBanner",
+            fontName=font_bold,
+            fontSize=11,
+            textColor=_COLOR_HEADER_TX,
+            leading=14,
+            spaceBefore=0,
+            spaceAfter=0,
+        ),
+    )
+    t = Table([[p]], colWidths=[width])
+    t.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), _COLOR_HEADER_BG),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]
+        )
+    )
+    return t
+
+
+def _kv_table(
+    rows: List[List[str]],
+    font_reg: str,
+    font_bold: str,
+    col_label: float = 2.15 * inch,
+) -> Table:
+    """
+    Таблица «параметр — значение» с заголовком в первой строке.
+    rows[0] = [заголовок колонки 1, заголовок колонки 2]
+    """
+    w = _content_width()
+    cw = [col_label, w - col_label]
+    n = len(rows)
+    style_cmds = [
+        ("BACKGROUND", (0, 0), (-1, 0), _COLOR_HEADER_BG),
+        ("TEXTCOLOR", (0, 0), (-1, 0), _COLOR_HEADER_TX),
+        ("FONTNAME", (0, 0), (-1, 0), font_bold),
+        ("FONTSIZE", (0, 0), (-1, 0), 9),
+        ("TOPPADDING", (0, 0), (-1, 0), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("FONTNAME", (0, 1), (-1, -1), font_reg),
+        ("FONTSIZE", (0, 1), (-1, -1), 9),
+        ("TEXTCOLOR", (0, 1), (-1, -1), _COLOR_TEXT),
+        ("TOPPADDING", (0, 1), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 7),
+        ("GRID", (0, 0), (-1, -1), 0.5, _COLOR_BORDER),
+    ]
+    if n > 2:
+        style_cmds.append(
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_COLOR_ROW, _COLOR_ROW_ALT])
+        )
+    tbl = Table(rows, colWidths=cw, repeatRows=1)
+    tbl.setStyle(TableStyle(style_cmds))
+    return tbl
+
 
 class ReportGenerator:
     """Генератор отчетов в различных форматах"""
-    
+
     def __init__(self):
         self.reports_dir = REPORTS_DIR
         os.makedirs(self.reports_dir, exist_ok=True)
-    
+
     def format_analysis_result(
-        self, 
-        file_type: str, 
-        metadata: Dict[str, Any], 
-        ai_indicators: Dict[str, Any]
+        self,
+        file_type: str,
+        metadata: Dict[str, Any],
+        ai_indicators: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """
-        Форматирование результата анализа для отчета
-        
-        Returns:
-            Словарь с отформатированными данными
-        """
         summary = self._generate_summary(file_type, metadata, ai_indicators)
-        
         return {
             "file_type": file_type,
             "summary": summary,
             "metadata": metadata,
             "ai_indicators": ai_indicators,
-            "generated_at": datetime.now().isoformat()
+            "generated_at": datetime.now().isoformat(),
         }
-    
+
     def _generate_summary(
         self,
         file_type: str,
         metadata: Dict[str, Any],
-        ai_indicators: Dict[str, Any]
+        ai_indicators: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Генерация краткого резюме (только для офисных документов)."""
         return {
             "location": None,
             "date_time": None,
-            "source": metadata.get("document_metadata", {}).get("creator") or "Офисный документ",
+            "source": metadata.get("document_metadata", {}).get("creator")
+            or "Офисный документ",
             "ai_probability": ai_indicators.get("ai_probability", 0),
-            "confidence": ai_indicators.get("confidence", "low")
+            "confidence": ai_indicators.get("confidence", "low"),
         }
-    
+
     def generate_json_report(self, report_data: Dict[str, Any]) -> str:
-        """Генерация JSON отчета"""
         filename = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         filepath = os.path.join(self.reports_dir, filename)
-        
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             json.dump(report_data, f, ensure_ascii=False, indent=2)
-        
         return filepath
-    
-    def generate_pdf_report(self, report_data: Dict[str, Any], original_file: Optional[str] = None) -> str:
-        """Генерация PDF отчета с визуальными индикаторами"""
+
+    def generate_pdf_report(
+        self, report_data: Dict[str, Any], original_file: Optional[str] = None
+    ) -> str:
         filename = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         filepath = os.path.join(self.reports_dir, filename)
-        
-        doc = SimpleDocTemplate(filepath, pagesize=A4, 
-                               leftMargin=0.75*inch, rightMargin=0.75*inch,
-                               topMargin=0.75*inch, bottomMargin=0.75*inch)
-        story = []
+
+        doc = SimpleDocTemplate(
+            filepath,
+            pagesize=A4,
+            leftMargin=0.75 * inch,
+            rightMargin=0.75 * inch,
+            topMargin=0.75 * inch,
+            bottomMargin=0.75 * inch,
+            title="Отчёт об анализе метаданных",
+        )
+        story: List[Any] = []
         styles = getSampleStyleSheet()
-        
-        # Стили
+        font_reg, font_bold = _register_unicode_pdf_fonts()
+        cw = _content_width()
+
         title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=20,
-            textColor=colors.HexColor('#262626'),
-            spaceAfter=20,
+            "DocTitle",
+            parent=styles["Heading1"],
+            fontName=font_bold,
+            fontSize=18,
+            textColor=_COLOR_TEXT,
+            spaceAfter=6,
             alignment=TA_CENTER,
-            fontName='Helvetica-Bold'
+            leading=22,
         )
-        
-        heading_style = ParagraphStyle(
-            'SectionHeading',
-            parent=styles['Heading2'],
-            fontSize=14,
-            textColor=colors.HexColor('#262626'),
-            spaceAfter=12,
-            spaceBefore=16,
-            fontName='Helvetica-Bold'
-        )
-        
-        normal_style = ParagraphStyle(
-            'NormalText',
-            parent=styles['Normal'],
+        subtitle_style = ParagraphStyle(
+            "DocSubtitle",
+            parent=styles["Normal"],
+            fontName=font_reg,
             fontSize=10,
-            textColor=colors.HexColor('#262626'),
-            spaceAfter=8,
-            leading=14
-        )
-        
-        # Заголовок
-        story.append(Paragraph("АНАЛИЗ МЕТАДАННЫХ", title_style))
-        story.append(Paragraph("Проверка документов Word и PowerPoint (DOCX, PPTX)", 
-                              ParagraphStyle('Subtitle', parent=styles['Normal'], 
-                                           fontSize=11, alignment=TA_CENTER, 
-                                           textColor=colors.HexColor('#333333'),
-                                           spaceAfter=24)))
-        story.append(Spacer(1, 0.1*inch))
-        
-        # Вероятность ИИ-вмешательства
-        ai_indicators = report_data.get("ai_indicators", {})
-        ai_prob = ai_indicators.get("ai_probability", 0)
-        
-        if ai_prob < 30:
-            ai_color = colors.HexColor('#22c55e')  # green
-            ai_status = "Низкая"
-        elif ai_prob < 70:
-            ai_color = colors.HexColor('#f59e0b')  # orange
-            ai_status = "Средняя"
-        else:
-            ai_color = colors.HexColor('#ef4444')  # red
-            ai_status = "Высокая"
-        
-        prob_style = ParagraphStyle(
-            'Probability',
-            parent=styles['Normal'],
-            fontSize=16,
-            textColor=ai_color,
-            spaceAfter=8,
+            textColor=_COLOR_MUTED,
             alignment=TA_CENTER,
-            fontName='Helvetica-Bold'
+            spaceAfter=16,
+            leading=14,
         )
-        
-        story.append(Paragraph(f"<b>Вероятность ИИ-вмешательства: {ai_prob}%</b>", prob_style))
-        story.append(Paragraph(f"<b>Уровень:</b> {ai_status}", 
-                              ParagraphStyle('Status', parent=normal_style, 
-                                           alignment=TA_CENTER, fontSize=11)))
-        story.append(Spacer(1, 0.2*inch))
-        
-        # Информация о файле
-        story.append(Paragraph("<b>ИНФОРМАЦИЯ О ФАЙЛЕ</b>", heading_style))
-        
-        summary = report_data.get("summary", {})
+        body = ParagraphStyle(
+            "Body",
+            parent=styles["Normal"],
+            fontName=font_reg,
+            fontSize=10,
+            textColor=_COLOR_TEXT,
+            spaceAfter=6,
+            leading=14,
+            alignment=TA_LEFT,
+        )
+        body_small = ParagraphStyle(
+            "BodySmall",
+            parent=body,
+            fontSize=9,
+            textColor=_COLOR_MUTED,
+            spaceAfter=4,
+        )
+        img_card_title_style = ParagraphStyle(
+            "ImageCardTitle",
+            parent=styles["Normal"],
+            fontName=font_bold,
+            fontSize=11,
+            textColor=_COLOR_TEXT,
+            spaceBefore=14,
+            spaceAfter=8,
+            leading=14,
+        )
+        bullet = ParagraphStyle(
+            "Bullet",
+            parent=body,
+            leftIndent=14,
+            bulletIndent=6,
+            spaceAfter=4,
+        )
+
+        # Титул
+        story.append(Paragraph("Отчёт об анализе метаданных", title_style))
+        story.append(
+            Paragraph(
+                "Документы Microsoft Word и PowerPoint (DOCX, PPTX)",
+                subtitle_style,
+            )
+        )
+        story.append(_hr_line(cw))
+        story.append(Spacer(1, 0.18 * inch))
+
+        ai_indicators = report_data.get("ai_indicators", {})
+        summary = report_data.get("summary", {}) or {}
+        ai_prob = ai_indicators.get("ai_probability")
+        if ai_prob is None:
+            ai_prob = (
+                ai_indicators.get("final_score")
+                if ai_indicators.get("final_score") is not None
+                else summary.get("final_score")
+                if summary.get("final_score") is not None
+                else summary.get("ai_probability")
+            )
+        if ai_prob is None:
+            ai_prob = 0
+        try:
+            ai_prob = int(round(float(ai_prob)))
+        except (TypeError, ValueError):
+            ai_prob = 0
+        ai_prob = max(0, min(100, ai_prob))
+
+        if ai_prob < 30:
+            ai_color = colors.HexColor("#15803d")
+            ai_status = "низкая"
+        elif ai_prob < 70:
+            ai_color = colors.HexColor("#b45309")
+            ai_status = "средняя"
+        else:
+            ai_color = colors.HexColor("#b91c1c")
+            ai_status = "высокая"
+
+        ms = ai_indicators.get("metadata_score")
+        mls = ai_indicators.get("ml_metadata_score")
+        fs = ai_indicators.get("final_score")
+        mma = ai_indicators.get("metadata_ml_available")
+
+        # 1. Итог проверки
+        story.append(_section_banner("1. Итог проверки", font_bold, cw))
+        story.append(Spacer(1, 0.1 * inch))
+
+        score_box = Table(
+            [
+                [
+                    Paragraph(
+                        f"<font color='{ai_color.hexval()}'><b>{ai_prob}%</b></font>",
+                        ParagraphStyle(
+                            "BigScore",
+                            fontName=font_bold,
+                            fontSize=22,
+                            alignment=TA_CENTER,
+                            leading=26,
+                        ),
+                    )
+                ],
+                [
+                    Paragraph(
+                        f"Сводная оценка риска ИИ: <b>{ai_status}</b>",
+                        ParagraphStyle(
+                            "ScoreCap",
+                            fontName=font_reg,
+                            fontSize=10,
+                            alignment=TA_CENTER,
+                            textColor=_COLOR_MUTED,
+                            leading=13,
+                        ),
+                    )
+                ],
+            ],
+            colWidths=[cw],
+        )
+        score_box.setStyle(
+            TableStyle(
+                [
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 12),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+                    ("BOX", (0, 0), (-1, -1), 0.75, _COLOR_BORDER),
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fafafa")),
+                ]
+            )
+        )
+        story.append(score_box)
+        story.append(Spacer(1, 0.12 * inch))
+
+        if ms is not None or mls is not None or fs is not None:
+            h_ml = str(mls) + "%" if mls is not None else "—"
+            if not mma and mls is None:
+                h_ml = "—"
+            detail_rows = [
+                ["Показатель", "Значение"],
+                [
+                    "Эвристика",
+                    f"{ms}%" if ms is not None else "—",
+                ],
+                [
+                    "ML",
+                    h_ml + (" (модель загружена)" if mma else " (модель не загружена)"),
+                ],
+                [
+                    "Итог",
+                    f"{fs if fs is not None else ai_prob}%",
+                ],
+            ]
+            story.append(
+                Paragraph("Разбивка оценок", body_small)
+            )
+            story.append(Spacer(1, 0.06 * inch))
+            story.append(_kv_table(detail_rows, font_reg, font_bold))
+
+        story.append(Spacer(1, 0.2 * inch))
+
+        # 2. Файл
+        story.append(_section_banner("2. Загруженный файл", font_bold, cw))
+        story.append(Spacer(1, 0.1 * inch))
         file_info = report_data.get("file_info", {})
-        
-        info_data = [
+        file_rows = [
             ["Параметр", "Значение"],
-            ["Тип файла", report_data.get("file_type", "N/A").upper()],
-            ["Название файла", file_info.get("name", "Не указано")],
-            ["Размер файла", file_info.get("size_formatted", "Не указано") if file_info.get("size") else "Не указано"],
-            ["Местоположение", summary.get("location") or "Не указано"],
-            ["Дата и время", summary.get("date_time") or "Не указано"],
-            ["Источник", summary.get("source") or "Неизвестно"],
+            ["Тип", str(report_data.get("file_type", "—")).upper()],
+            ["Имя файла", str(file_info.get("name", "—"))],
+            [
+                "Размер",
+                str(file_info.get("size_formatted", "—"))
+                if file_info.get("size")
+                else "—",
+            ],
+            ["Местоположение", summary.get("location") or "—"],
+            ["Дата и время", summary.get("date_time") or "—"],
+            ["Источник (сводка)", summary.get("source") or "—"],
         ]
-        
-        info_table = Table(info_data, colWidths=[2.2*inch, 4.3*inch])
-        info_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#262626')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#E9E9E9')),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-            ('TOPPADDING', (0, 0), (-1, 0), 10),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#E9E9E9')),
-            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#262626')),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('LEFTPADDING', (0, 0), (-1, -1), 8),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-            ('TOPPADDING', (0, 1), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
-        ]))
-        story.append(info_table)
-        story.append(Spacer(1, 0.3*inch))
-        
-        # По фактам из метаданных
+        story.append(_kv_table(file_rows, font_reg, font_bold))
+        story.append(Spacer(1, 0.16 * inch))
+
+        # 3. Факты из метаданных
         evidence = ai_indicators.get("evidence_from_metadata", [])
         if evidence:
-            story.append(Paragraph("<b>ПО ФАКТАМ ИЗ МЕТАДАННЫХ</b>", heading_style))
+            story.append(_section_banner("3. Факты из метаданных", font_bold, cw))
+            story.append(Spacer(1, 0.1 * inch))
             for fact in evidence:
-                story.append(Paragraph(f"• {fact}", normal_style))
-            story.append(Spacer(1, 0.2*inch))
-        
-        # Обнаруженные признаки ИИ
-        story.append(Paragraph("<b>ОБНАРУЖЕННЫЕ ПРИЗНАКИ ИИ</b>", heading_style))
-        
+                safe = (
+                    str(fact)
+                    .replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                )
+                story.append(Paragraph(f"• {safe}", bullet))
+            story.append(Spacer(1, 0.12 * inch))
+        else:
+            story.append(_section_banner("3. Факты из метаданных", font_bold, cw))
+            story.append(Spacer(1, 0.1 * inch))
+            story.append(Paragraph("Записей не найдено.", body_small))
+            story.append(Spacer(1, 0.12 * inch))
+
+        # 4. Признаки
+        story.append(_section_banner("4. Признаки и замечания", font_bold, cw))
+        story.append(Spacer(1, 0.1 * inch))
         software_detected = ai_indicators.get("software_detected", [])
         if software_detected:
-            story.append(Paragraph(f"<b>Обнаруженное ПО:</b> {', '.join(software_detected)}", normal_style))
+            sw = ", ".join(software_detected)
+            sw = (
+                sw.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+            )
+            story.append(Paragraph(f"<b>Обнаруженное ПО:</b> {sw}", body))
         else:
-            story.append(Paragraph("Обнаруженное ПО: Не обнаружено", normal_style))
-        
+            story.append(Paragraph("<b>Обнаруженное ПО:</b> нет", body))
+
         anomalies = ai_indicators.get("anomalies", [])
         if anomalies:
-            story.append(Spacer(1, 0.1*inch))
-            story.append(Paragraph("<b>Аномалии и подозрительные признаки:</b>", normal_style))
-            for anomaly in anomalies:
-                story.append(Paragraph(f"• {anomaly}", normal_style))
+            story.append(Spacer(1, 0.06 * inch))
+            story.append(Paragraph("<b>Аномалии и подозрительные признаки</b>", body))
+            for an in anomalies:
+                s = (
+                    str(an)
+                    .replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                )
+                story.append(Paragraph(f"• {s}", bullet))
         else:
-            story.append(Paragraph("Аномалии: Не обнаружено", normal_style))
-        
-        story.append(Spacer(1, 0.3*inch))
-        
-        # Детальные метаданные
+            story.append(Paragraph("Аномалии: не обнаружены.", body_small))
+
+        story.append(Spacer(1, 0.2 * inch))
         story.append(PageBreak())
-        story.append(Paragraph("<b>ДЕТАЛЬНЫЕ МЕТАДАННЫЕ</b>", heading_style))
-        
+
+        # 5. Документ и изображения
+        story.append(_section_banner("5. Документ и встроенные изображения", font_bold, cw))
+        story.append(Spacer(1, 0.1 * inch))
         metadata = report_data.get("metadata", {})
-        self._add_document_metadata(story, metadata, styles, normal_style, heading_style)
-        
-        # Футер
-        story.append(Spacer(1, 0.3*inch))
-        footer_style = ParagraphStyle(
-            'Footer',
-            parent=styles['Normal'],
-            fontSize=8,
-            textColor=colors.HexColor('#666666'),
-            alignment=TA_CENTER
+        self._add_document_metadata(
+            story,
+            metadata,
+            body,
+            body_small,
+            img_card_title_style,
+            bullet,
+            font_reg,
+            font_bold,
         )
-        generated_at = report_data.get('generated_at', '')
+
+        story.append(Spacer(1, 0.35 * inch))
+        generated_at = report_data.get("generated_at", "")
         if generated_at:
             try:
-                dt = datetime.fromisoformat(generated_at.replace('Z', '+00:00'))
-                formatted_date = dt.strftime('%d.%m.%Y %H:%M:%S')
-            except:
+                dt = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+                formatted_date = dt.strftime("%d.%m.%Y %H:%M:%S")
+            except Exception:
                 formatted_date = generated_at
         else:
-            formatted_date = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
-        
-        story.append(Paragraph(
-            f"Отчет сгенерирован: {formatted_date}",
-            footer_style
-        ))
-        
+            formatted_date = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+
+        footer_style = ParagraphStyle(
+            "Footer",
+            parent=styles["Normal"],
+            fontName=font_reg,
+            fontSize=8,
+            textColor=_COLOR_MUTED,
+            alignment=TA_CENTER,
+        )
+        story.append(_hr_line(cw))
+        story.append(Spacer(1, 0.1 * inch))
+        story.append(
+            Paragraph(f"Дата формирования отчёта: {formatted_date}", footer_style)
+        )
+
         doc.build(story)
         return filepath
-    
-    def _add_document_metadata(self, story, metadata, styles, normal_style, heading_style):
-        """Добавление метаданных DOCX/PPTX и списка изображений в отчёт."""
+
+    def _add_document_metadata(
+        self,
+        story,
+        metadata,
+        body,
+        body_small,
+        img_card_title_style,
+        bullet,
+        font_reg: str,
+        font_bold: str,
+    ):
         def _escape(s):
             if s is None:
                 return ""
@@ -256,27 +558,9 @@ class ReportGenerator:
 
         def _format_value(value):
             if value is None or value == "":
-                return "N/A"
+                return "—"
             text = str(value)
-            return text if len(text) <= 150 else text[:147] + "..."
-
-        table_style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f3f4f6')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#262626')),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('TOPPADDING', (0, 0), (-1, 0), 8),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#E9E9E9')),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#d1d5db')),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('FONTSIZE', (0, 1), (-1, -1), 8),
-            ('LEFTPADDING', (0, 0), (-1, -1), 6),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-            ('TOPPADDING', (0, 1), (-1, -1), 5),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
-        ])
+            return text if len(text) <= 200 else text[:197] + "..."
 
         document_type = metadata.get("document_type", "word")
         document_label = "PowerPoint" if document_type == "powerpoint" else "Word"
@@ -285,60 +569,103 @@ class ReportGenerator:
         images_count = metadata.get("images_count", 0)
         images_with_ai = metadata.get("images_with_ai_count", 0)
 
-        story.append(Paragraph(f"<b>Документ:</b> {document_label}", normal_style))
-        story.append(Spacer(1, 0.1*inch))
+        story.append(
+            Paragraph(
+                f"<b>Тип документа:</b> {document_label}",
+                body,
+            )
+        )
+        story.append(Spacer(1, 0.1 * inch))
 
-        meta_rows = [["Параметр", "Значение"]]
+        meta_rows = [["Поле", "Значение"]]
         meta_fields = [
             ("Автор", document_meta.get("creator")),
             ("Последний редактор", document_meta.get("last_modified_by")),
-            ("Дата создания", document_meta.get("created")),
-            ("Дата изменения", document_meta.get("modified")),
-            ("Дата печати", document_meta.get("last_printed")),
+            ("Создан", document_meta.get("created")),
+            ("Изменён", document_meta.get("modified")),
+            ("Печать", document_meta.get("last_printed")),
             ("Ревизия", document_meta.get("revision")),
             ("Приложение", document_meta.get("application")),
             ("Версия приложения", document_meta.get("app_version")),
-            ("Страницы", document_meta.get("pages")),
-            ("Слайды", document_meta.get("slides")),
-            ("Слова", document_meta.get("words")),
-            ("Символы", document_meta.get("characters")),
-            ("Символы с пробелами", document_meta.get("characters_with_spaces")),
+            ("Страниц", document_meta.get("pages")),
+            ("Слайдов", document_meta.get("slides")),
+            ("Слов", document_meta.get("words")),
+            ("Символов", document_meta.get("characters")),
+            ("С пробелами", document_meta.get("characters_with_spaces")),
         ]
-
         for label, value in meta_fields:
             if value is not None and str(value).strip():
                 meta_rows.append([label, _format_value(value)])
 
         if len(meta_rows) > 1:
-            story.append(Paragraph("<b>Свойства документа</b>", heading_style))
-            meta_table = Table(meta_rows, colWidths=[2.2*inch, 4.3*inch])
-            meta_table.setStyle(table_style)
-            story.append(meta_table)
-            story.append(Spacer(1, 0.2*inch))
+            story.append(
+                Paragraph("Свойства документа (из файла)", body_small)
+            )
+            story.append(Spacer(1, 0.06 * inch))
+            story.append(_kv_table(meta_rows, font_reg, font_bold))
+            story.append(Spacer(1, 0.16 * inch))
 
-        story.append(Paragraph(
-            f"<b>Встроенные изображения:</b> {images_count}, с признаками ИИ — {images_with_ai}.",
-            normal_style
-        ))
-        story.append(Spacer(1, 0.15*inch))
+        story.append(
+            Paragraph(
+                f"<b>Встроенные изображения:</b> {images_count} шт.; "
+                f"с ненулевой оценкой ИИ — {images_with_ai}.",
+                body,
+            )
+        )
+        story.append(Spacer(1, 0.14 * inch))
+
+        if not images:
+            story.append(Paragraph("В документе нет извлечённых изображений.", body_small))
+            return
 
         for i, img in enumerate(images):
             fname = _escape(img.get("filename", f"image_{i+1}"))
             source_path = _escape(img.get("archive_path", ""))
             ai_ind = img.get("ai_indicators", {})
             prob = ai_ind.get("ai_probability", 0)
+            m_s = ai_ind.get("metadata_score")
+            ml_s = ai_ind.get("ml_metadata_score")
+            ml_ok = ai_ind.get("metadata_ml_available")
 
-            story.append(Paragraph(
-                f"<b>Изображение {i + 1}:</b> {fname} — вероятность ИИ {prob}%",
-                heading_style
-            ))
+            block: List[Any] = []
+            block.append(
+                Paragraph(
+                    f"<b>Изображение {i + 1}.</b> {_escape(fname)}",
+                    img_card_title_style,
+                )
+            )
+            img_rows = [
+                ["Параметр", "Значение"],
+                ["Итоговая оценка ИИ", f"{prob}%"],
+            ]
+            if m_s is not None:
+                img_rows.append(["Эвристика", f"{m_s}%"])
+            if ml_ok and ml_s is not None:
+                img_rows.append(["ML", f"{ml_s}%"])
+            elif ml_ok is False:
+                img_rows.append(["ML", "модель не использована"])
+            block.append(_kv_table(img_rows, font_reg, font_bold))
+
             if source_path:
-                story.append(Paragraph(f"Путь в архиве: {_escape(source_path)}", normal_style))
-            if ai_ind.get("software_detected"):
-                story.append(Paragraph(
-                    "Обнаруженное ПО: " + _escape(", ".join(ai_ind["software_detected"])),
-                    normal_style
-                ))
-            for anom in ai_ind.get("anomalies", []):
-                story.append(Paragraph("• " + _escape(anom), normal_style))
-            story.append(Spacer(1, 0.12*inch))
+                block.append(Spacer(1, 0.06 * inch))
+                block.append(
+                    Paragraph(
+                        f"<b>Путь в архиве документа:</b><br/>{source_path}",
+                        body_small,
+                    )
+                )
+            sw = ai_ind.get("software_detected") or []
+            if sw:
+                block.append(
+                    Paragraph(
+                        "<b>ПО в метаданных:</b> " + _escape(", ".join(sw)),
+                        body,
+                    )
+                )
+            anoms = ai_ind.get("anomalies") or []
+            if anoms:
+                block.append(Paragraph("<b>Замечания</b>", body_small))
+                for an in anoms:
+                    block.append(Paragraph("• " + _escape(an), bullet))
+            block.append(Spacer(1, 0.14 * inch))
+            story.append(KeepTogether(block))

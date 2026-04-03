@@ -1,49 +1,49 @@
 <template>
   <div class="space-y-4">
     <template v-if="fileType === 'document'">
-      <div class="card p-4">
-        <div v-if="documentMetaRows.length" class="grid gap-6 sm:grid-cols-[1fr_1.5fr] items-start">
-          <div>
-            <h4 class="font-polonium text-xl font-bold text-gray-900 mb-3">О документе</h4>
-            <div
-              v-for="(row, idx) in documentMetaRowsText"
-              :key="`doc-meta-t-${idx}`"
-              class="flex flex-col gap-1 py-2"
-            >
-              <div class="text-sm font-medium text-gray-600">{{ row.key }}</div>
-              <div class="break-words text-sm font-mono text-gray-900">{{ row.value }}</div>
-            </div>
-          </div>
-          <div class="grid gap-4 sm:grid-cols-2">
+      <div class="card card-no-border py-4 px-0">
+        <div v-if="documentMetaRows.length" class="flex flex-col gap-6">
+          <div
+            v-if="documentMetaRowsDates.length"
+            class="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6"
+          >
             <div
               v-for="(row, idx) in documentMetaRowsDates"
               :key="`doc-meta-d-${idx}`"
-              class="flex flex-col gap-2"
+              class="flex min-w-0 w-full flex-col gap-2"
+              :class="{ 'sm:col-span-2': documentMetaRowsDates.length === 1 }"
             >
-              <div class="text-sm font-medium text-gray-600">{{ row.key }}</div>
-              <div class="flex flex-col gap-2">
-                <div v-if="getCalendarMonth(row.value)" class="inline-flex w-fit max-w-[280px] flex-col rounded-lg border border-gray-200 bg-white p-3">
-                  <div class="mb-2 text-center text-sm font-medium text-gray-700">
-                    {{ getCalendarMonth(row.value).monthName }} {{ getCalendarMonth(row.value).year }}
+              <div
+                v-if="getCalendarMonth(row.value)"
+                class="doc-meta-calendar flex w-full min-w-0 flex-col rounded-lg border-2 border-solid border-[#212121] bg-white p-3 sm:p-4"
+              >
+                <div class="mb-2 text-center text-sm font-medium text-gray-700 sm:text-base">
+                  {{ getCalendarMonth(row.value).monthName }} {{ getCalendarMonth(row.value).year }}
+                </div>
+                <div class="grid w-full grid-cols-7 gap-px text-center text-xs">
+                  <div v-for="w in 7" :key="`wd-${idx}-${w}`" class="py-1.5 font-medium text-gray-500">
+                    {{ ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'][w - 1] }}
                   </div>
-                  <div class="grid grid-cols-7 gap-px text-center text-xs">
-                    <div v-for="w in 7" :key="`wd-${w}`" class="py-1 font-medium text-gray-500">
-                      {{ ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'][w - 1] }}
+                  <template v-for="(week, wi) in getCalendarMonth(row.value).weeks" :key="`w-${idx}-${wi}`">
+                    <div
+                      v-for="(day, di) in week"
+                      :key="`d-${idx}-${wi}-${di}`"
+                      class="flex min-h-8 items-center justify-center rounded text-xs sm:min-h-9"
+                      :class="day === getCalendarMonth(row.value).highlightDay ? 'bg-[#212121] text-[#FFF5E5] font-semibold' : day ? 'text-gray-700' : 'text-gray-300'"
+                    >
+                      {{ day || '' }}
                     </div>
-                    <template v-for="(week, wi) in getCalendarMonth(row.value).weeks" :key="`w-${wi}`">
-                      <div
-                        v-for="(day, di) in week"
-                        :key="`d-${wi}-${di}`"
-                        class="flex h-8 w-8 items-center justify-center rounded text-xs"
-                        :class="day === getCalendarMonth(row.value).highlightDay ? 'bg-[#212121] text-[#FFF5E5] font-semibold' : day ? 'text-gray-700' : 'text-gray-300'"
-                      >
-                        {{ day || '' }}
-                      </div>
-                    </template>
-                  </div>
-                  <div class="mt-2 text-center text-sm text-gray-500">{{ daysAgoLabel(row.value) }}</div>
+                  </template>
+                </div>
+                <div class="mt-2 flex flex-wrap items-center justify-center gap-x-1.5 text-center text-sm leading-snug">
+                  <span class="font-medium text-gray-600">{{ row.key }}</span>
+                  <span v-if="daysAgoLabel(row.value)" class="text-gray-500">{{ daysAgoLabel(row.value) }}</span>
                 </div>
               </div>
+              <template v-else>
+                <div class="text-sm font-medium text-gray-600">{{ row.key }}</div>
+                <div class="break-words text-sm text-gray-900">{{ row.value }}</div>
+              </template>
             </div>
           </div>
         </div>
@@ -150,8 +150,6 @@ export default {
       if (!source || typeof source !== 'object') return []
 
       const map = [
-        ['creator', 'Автор'],
-        ['last_modified_by', 'Последний редактор'],
         ['created', 'Создан'],
         ['modified', 'Изменен']
       ]
@@ -159,11 +157,6 @@ export default {
       return map
         .filter(([key]) => this.hasValue(source[key]))
         .map(([key, label]) => ({ rawKey: key, key: label, value: source[key] }))
-    },
-    documentMetaRowsText() {
-      return this.documentMetaRows.filter(
-        (row) => row.rawKey !== 'created' && row.rawKey !== 'modified'
-      )
     },
     documentMetaRowsDates() {
       return this.documentMetaRows.filter(

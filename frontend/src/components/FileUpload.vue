@@ -10,8 +10,8 @@
       @dragleave="isDragging = false"
       @dragenter="isDragging = true"
       :class="[
-        'rounded-lg border-2 border-dashed p-8 text-center cursor-pointer transition-colors',
-        isDragging ? 'border-gray-400 bg-gray-100' : 'border-gray-300 bg-white hover:bg-gray-50'
+        'file-upload-dropzone rounded-lg border-2 border-dashed p-8 text-center cursor-pointer transition-colors',
+        isDragging ? 'file-upload-dropzone--drag border-[#212121] bg-gray-100' : 'border-[#212121] bg-[#FFFFFF] hover:bg-[#FFFFFF]'
       ]"
       role="button"
       tabindex="0"

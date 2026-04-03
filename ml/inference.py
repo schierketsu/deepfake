@@ -1,0 +1,134 @@
+"""
+Загрузка обученной модели (sklearn) и предсказание **ml_metadata_score** 0–100
+только по признакам метаданных (без пикселей).
+"""
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+try:
+    import joblib
+except ImportError:
+    joblib = None  # type: ignore
+
+from ml.metadata_features import (
+    METADATA_FEATURE_NAMES,
+    extract_metadata_only_features,
+    vectorize_metadata_features,
+)
+
+_model = None
+_model_path: Optional[str] = None
+_feature_names: Optional[List[str]] = None
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
+def default_model_path() -> Path:
+    env = os.environ.get("ML_MODEL_PATH")
+    if env:
+        return Path(env)
+    return _repo_root() / "artifacts" / "model.joblib"
+
+
+def load_model(path: Optional[Path] = None) -> Tuple[Any, List[str]]:
+    global _model, _model_path, _feature_names
+    path = path or default_model_path()
+    path = path.resolve()
+    if joblib is None:
+        raise RuntimeError("joblib is required for ML inference")
+    if not path.is_file():
+        raise FileNotFoundError(f"Model not found: {path}")
+    if _model is not None and str(_model_path) == str(path):
+        return _model, _feature_names or METADATA_FEATURE_NAMES
+
+    bundle = joblib.load(path)
+    if isinstance(bundle, dict) and "model" in bundle:
+        _model = bundle["model"]
+        _feature_names = list(bundle.get("feature_names", METADATA_FEATURE_NAMES))
+    else:
+        _model = bundle
+        _feature_names = list(METADATA_FEATURE_NAMES)
+
+    _model_path = str(path)
+    return _model, _feature_names
+
+
+def is_model_available(path: Optional[Path] = None) -> bool:
+    p = path or default_model_path()
+    return p.is_file() and joblib is not None
+
+
+def predict_metadata_ml_score(
+    metadata: Optional[Dict[str, Any]],
+    model_path: Optional[Path] = None,
+) -> Tuple[Optional[int], bool, Dict[str, Any]]:
+    """
+    Вероятность «ИИ по метаданным» 0–100 по обученной модели на табличных признаках.
+
+    Возвращает (score или None, success, debug).
+    """
+    debug: Dict[str, Any] = {"model_path": str(model_path or default_model_path())}
+    if joblib is None:
+        debug["error"] = "joblib not installed"
+        return None, False, debug
+
+    path = model_path or default_model_path()
+    if not path.is_file():
+        debug["error"] = "model file missing"
+        return None, False, debug
+
+    if not metadata or metadata.get("error"):
+        debug["error"] = "no metadata"
+        return None, False, debug
+
+    try:
+        model, feat_names = load_model(path)
+    except Exception as e:
+        debug["error"] = str(e)
+        return None, False, debug
+
+    try:
+        combined = extract_metadata_only_features(metadata)
+        X = vectorize_metadata_features(combined, feat_names).reshape(1, -1)
+    except Exception as e:
+        debug["error"] = f"features: {e}"
+        return None, False, debug
+
+    try:
+        if hasattr(model, "predict_proba"):
+            proba = model.predict_proba(X)[0]
+            if proba.shape[0] >= 2:
+                score = int(round(float(proba[1]) * 100))
+            else:
+                score = int(round(float(proba[0]) * 100))
+        else:
+            pred = model.predict(X)[0]
+            score = int(round(float(pred) * 100)) if pred <= 1.0 else int(pred)
+        score = max(0, min(100, score))
+        debug["ok"] = True
+        return score, True, debug
+    except Exception as e:
+        debug["error"] = str(e)
+        return None, False, debug
+
+
+def clear_model_cache() -> None:
+    global _model, _model_path, _feature_names
+    _model = None
+    _model_path = None
+    _feature_names = None
+
+
+# Обратная совместимость со старым именем
+def predict_visual_score(
+    image_path: str,
+    metadata: Optional[Dict[str, Any]] = None,
+    model_path: Optional[Path] = None,
+) -> Tuple[Optional[int], bool, Dict[str, Any]]:
+    """Устарело: путь к файлу не используется; вызывайте predict_metadata_ml_score(metadata)."""
+    return predict_metadata_ml_score(metadata, model_path=model_path)

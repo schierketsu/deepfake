@@ -2,7 +2,13 @@ from typing import Dict, Any, List
 import math
 
 class AIDetector:
-    """Эвристический детектор признаков ИИ-модификаций"""
+    """
+    Heuristic baseline: правила по EXIF/XMP/C2PA и простым признакам изображения.
+
+    Оценка ``metadata_score`` (0–100) — эвристический baseline; итоговая ``ai_probability``
+    задаётся в :class:`DocumentAnalyzer` через слияние с ML по табличным признакам
+    метаданных (``ml_metadata_score``).
+    """
     
     def __init__(self):
         self.ai_software_list = [
@@ -77,8 +83,9 @@ class AIDetector:
         # Сохраняем ссылку на metadata для использования в calculate_ai_probability
         result["_metadata_ref"] = metadata
         
-        # Расчет итоговой вероятности
+        # Расчет итоговой вероятности (baseline по метаданным / эвристикам)
         result["ai_probability"] = self.calculate_ai_probability(result)
+        result["metadata_score"] = result["ai_probability"]
         result["confidence"] = self.generate_confidence_score(result, metadata)
         
         # Удаляем служебное поле перед возвратом

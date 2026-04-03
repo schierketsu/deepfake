@@ -49,6 +49,9 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# ML artifacts (train locally)
+artifacts/*.joblib
+
 # Reports
 *.pdf
 reports/

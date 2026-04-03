@@ -27,11 +27,12 @@
   body,
   #app {
     min-height: 100%;
+    background-color: #ffffff;
   }
 
   body {
     margin: 0;
-    @apply bg-gray-50 text-gray-900 antialiased font-sans font-medium;
+    @apply text-gray-900 antialiased font-sans font-medium;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -51,7 +52,8 @@
 
 @layer components {
   .app-shell {
-    @apply min-h-screen flex flex-col bg-gray-50;
+    @apply min-h-screen flex flex-col overflow-x-hidden;
+    background-color: #ffffff;
   }
 
   .header-dark {
@@ -62,17 +64,34 @@
     background-color: #212121;
     border: none;
   }
-  .header-dark .content-block .border-dashed {
+  .header-dark .content-block .border-dashed:not(.file-upload-dropzone) {
     border-color: #212121;
   }
-  .header-dark .content-block .border-dashed:hover,
-  .header-dark .content-block .border-dashed.border-gray-400 {
+  .header-dark .content-block .border-dashed:not(.file-upload-dropzone):hover,
+  .header-dark .content-block .border-dashed:not(.file-upload-dropzone).border-gray-400 {
     border-color: #212121;
   }
-  .header-dark .content-block .border-dashed p,
-  .header-dark .content-block .border-dashed .text-gray-900,
-  .header-dark .content-block .border-dashed .text-gray-500 {
+  .header-dark .content-block .border-dashed:not(.file-upload-dropzone) p,
+  .header-dark .content-block .border-dashed:not(.file-upload-dropzone) .text-gray-900,
+  .header-dark .content-block .border-dashed:not(.file-upload-dropzone) .text-gray-500 {
     color: #212121;
+  }
+  .header-dark .content-block .file-upload-dropzone {
+    background-color: #ffffff;
+    border-color: #212121;
+  }
+  .header-dark .content-block .file-upload-dropzone.file-upload-dropzone--drag {
+    border-color: #212121;
+    background-color: #f3f4f6;
+  }
+  .header-dark .content-block .file-upload-dropzone:hover:not(.file-upload-dropzone--drag) {
+    background-color: #ffffff;
+  }
+  .header-dark .content-block .file-upload-dropzone .text-gray-900 {
+    color: #111827;
+  }
+  .header-dark .content-block .file-upload-dropzone .text-gray-500 {
+    color: #6b7280;
   }
   .header-dark .primary-btn,
   .header-dark .secondary-btn {
@@ -94,7 +113,11 @@
   main .content-block h3,
   main .content-block h4,
   main .content-block h5,
-  main .content-block h6 {
+  main .content-block h6,
+  main .report-view-shell h3,
+  main .report-view-shell h4,
+  main .report-view-shell h5,
+  main .report-view-shell h6 {
     font-family: inherit;
     font-weight: 400;
     letter-spacing: normal;
@@ -105,16 +128,112 @@
   }
 
   main .content-block .primary-btn,
-  main .content-block .secondary-btn {
+  main .content-block .secondary-btn,
+  main .report-view-shell .primary-btn,
+  main .report-view-shell .secondary-btn {
     background-color: #212121;
   }
   main .content-block .primary-btn:hover,
-  main .content-block .secondary-btn:hover {
+  main .content-block .secondary-btn:hover,
+  main .report-view-shell .primary-btn:hover,
+  main .report-view-shell .secondary-btn:hover {
     background-color: #2d2d2d;
   }
 
   .content-block {
     @apply rounded-lg border border-gray-200 bg-white;
+  }
+
+  /* Белый блок отчёта с наездом на тёмную полосу */
+  .report-view {
+    @apply relative;
+  }
+  main .report-view-shell {
+    position: relative;
+    z-index: 2;
+    margin-bottom: calc(-8.5rem - 27px);
+    border-radius: 0.5rem 0.5rem 2.25rem 2.25rem;
+    background-color: #ffffff;
+    border: none;
+    box-shadow: none;
+  }
+  .full-bleed {
+    width: 100vw;
+    max-width: 100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+  }
+  .report-footer-band {
+    position: relative;
+    z-index: 1;
+    background-color: #2d2d2d;
+    padding-top: calc(clamp(7rem, 18vh, 14rem) + 27px);
+    padding-bottom: 0;
+    pointer-events: none;
+  }
+
+  .report-actions-row .primary-btn,
+  .report-actions-row .secondary-btn {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .report-doc-summary__metrics {
+    margin-top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    line-height: 1.3;
+  }
+  .report-doc-summary__metrics--inline {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    max-width: 100%;
+    gap: 0.5rem;
+  }
+  @media (min-width: 640px) {
+    .report-doc-summary__metrics--inline {
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+  }
+  .report-doc-summary__row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    white-space: nowrap;
+  }
+  .report-doc-summary__metrics--inline .report-doc-summary__row {
+    justify-content: flex-start;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+    width: 100%;
+  }
+  @media (min-width: 640px) {
+    .report-doc-summary__metrics--inline .report-doc-summary__row {
+      flex: 0 0 auto;
+      width: auto;
+      min-width: 0;
+    }
+  }
+  .report-doc-summary__row dt {
+    flex: 0 1 auto;
+    color: inherit;
+  }
+  .report-doc-summary__row dd {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+    color: inherit;
+  }
+  .site-footer {
+    background-color: #2d2d2d;
+    border-top: none;
   }
 
   .card {
@@ -264,6 +383,17 @@
     @apply flex flex-col min-w-0 rounded-lg border border-gray-200 bg-white p-4;
   }
 
+  .report-view .results-sidebar,
+  .report-view .results-detail {
+    border-width: 0;
+    border-color: transparent;
+    box-shadow: none;
+  }
+  .report-view .card {
+    border-width: 0;
+    border-color: transparent;
+    box-shadow: none;
+  }
   .results-nav {
     @apply flex flex-col gap-0.5;
   }
@@ -308,17 +438,28 @@
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    padding-top: 1rem;
+    padding-top: 0.65rem;
     pointer-events: none;
     z-index: 2;
-    font-family: inherit;
-    font-weight: 500;
-    font-size: 1.125rem;
-    color: #000;
+    font-family: 'Polonium', serif;
+    font-weight: 700;
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #111827;
   }
   .results-detail .wave-strip-label--low,
   .results-detail .wave-strip-label--mid,
   .results-detail .wave-strip-label--high {
-    color: #000;
+    color: #111827;
   }
+}
+
+/* Вне слоёв Tailwind — перебивает инлайн rgb(249,250,251) и утилиты */
+html,
+body,
+#app,
+.app-shell {
+  background-color: #ffffff !important;
 }

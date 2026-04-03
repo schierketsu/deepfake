@@ -72,6 +72,10 @@ async def analyze_document(file: UploadFile = File(...)):
                 source=f"{doc_label} документ (изображений не найдено)",
                 ai_probability=0,
                 confidence="low",
+                metadata_score=0,
+                ml_metadata_score=None,
+                final_score=0,
+                metadata_ml_available=False,
             )
             report_data = {
                 "file_type": "document",
@@ -81,6 +85,10 @@ async def analyze_document(file: UploadFile = File(...)):
                     "source": f"{doc_label} документ (изображений не найдено)",
                     "ai_probability": 0,
                     "confidence": "low",
+                    "metadata_score": 0,
+                    "ml_metadata_score": None,
+                    "final_score": 0,
+                    "metadata_ml_available": False,
                 },
                 "metadata": {
                     "document_type": doc_type,
@@ -95,6 +103,13 @@ async def analyze_document(file: UploadFile = File(...)):
                     "heuristics": {},
                     "anomalies": [],
                     "evidence_from_metadata": [],
+                    "ai_probability": 0,
+                    "confidence": "low",
+                    "metadata_score": 0,
+                    "ml_metadata_score": None,
+                    "final_score": 0,
+                    "metadata_ml_available": False,
+                    "fusion_method": "no_images",
                 },
                 "file_info": {
                     "name": file.filename or f"document{suffix}",
@@ -113,6 +128,10 @@ async def analyze_document(file: UploadFile = File(...)):
                 source=f"{doc_label} документ: изображений {images_count}, с признаками ИИ — {doc_result['images_with_ai_count']}",
                 ai_probability=agg["ai_probability"],
                 confidence=agg["confidence"],
+                metadata_score=agg.get("metadata_score"),
+                ml_metadata_score=agg.get("ml_metadata_score"),
+                final_score=agg.get("final_score", agg["ai_probability"]),
+                metadata_ml_available=agg.get("metadata_ml_available"),
             )
             report_gen = ReportGenerator()
             report_data = {
@@ -123,6 +142,10 @@ async def analyze_document(file: UploadFile = File(...)):
                     "source": f"{doc_label} документ: изображений {images_count}, с признаками ИИ — {doc_result['images_with_ai_count']}",
                     "ai_probability": agg["ai_probability"],
                     "confidence": agg["confidence"],
+                    "metadata_score": agg.get("metadata_score"),
+                    "ml_metadata_score": agg.get("ml_metadata_score"),
+                    "final_score": agg.get("final_score", agg["ai_probability"]),
+                    "metadata_ml_available": agg.get("metadata_ml_available"),
                 },
                 "metadata": {
                     "document_type": doc_type,
@@ -137,6 +160,13 @@ async def analyze_document(file: UploadFile = File(...)):
                     "heuristics": {},
                     "anomalies": agg["anomalies"],
                     "evidence_from_metadata": agg["evidence_from_metadata"],
+                    "ai_probability": agg["ai_probability"],
+                    "confidence": agg["confidence"],
+                    "metadata_score": agg.get("metadata_score"),
+                    "ml_metadata_score": agg.get("ml_metadata_score"),
+                    "final_score": agg.get("final_score", agg["ai_probability"]),
+                    "metadata_ml_available": agg.get("metadata_ml_available"),
+                    "fusion_method": agg.get("fusion_method"),
                 },
                 "file_info": {
                     "name": file.filename or f"document{suffix}",
@@ -162,6 +192,11 @@ async def analyze_document(file: UploadFile = File(...)):
                 heuristics=report_data["ai_indicators"].get("heuristics", {}),
                 anomalies=report_data["ai_indicators"].get("anomalies", []),
                 evidence_from_metadata=report_data["ai_indicators"].get("evidence_from_metadata") or [],
+                metadata_score=report_data["ai_indicators"].get("metadata_score"),
+                ml_metadata_score=report_data["ai_indicators"].get("ml_metadata_score"),
+                final_score=report_data["ai_indicators"].get("final_score"),
+                metadata_ml_available=report_data["ai_indicators"].get("metadata_ml_available"),
+                fusion_method=report_data["ai_indicators"].get("fusion_method"),
             ),
             report_url=f"/api/reports/{report_filename}",
         )
@@ -187,5 +222,9 @@ async def get_report(report_filename: str):
     return FileResponse(
         report_path,
         media_type="application/pdf",
-        filename=report_filename
+        filename=report_filename,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Pragma": "no-cache",
+        },
     )

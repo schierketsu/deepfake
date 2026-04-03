@@ -1,5 +1,20 @@
 <template>
   <div class="space-y-4">
+    <dl class="report-doc-summary__metrics report-doc-summary__metrics--inline font-polonium font-bold uppercase tracking-[0.1em] text-gray-900 w-full">
+      <div class="report-doc-summary__row">
+        <dt class="text-sm sm:text-base">Эвристика</dt>
+        <dd class="text-base sm:text-lg">{{ scoreOrDash(metadataScore) }}</dd>
+      </div>
+      <div class="report-doc-summary__row">
+        <dt class="text-sm sm:text-base">ML</dt>
+        <dd class="text-base sm:text-lg">{{ mlMetadataLabel }}</dd>
+      </div>
+      <div class="report-doc-summary__row">
+        <dt class="text-sm sm:text-base">Итог</dt>
+        <dd class="text-base sm:text-lg">{{ scoreOrDash(finalScore) }}</dd>
+      </div>
+    </dl>
+
     <div class="card card-no-border p-4">
       <p v-if="softwareDetected" class="text-sm text-gray-600">ПО: {{ softwareDetected }}</p>
       <ul v-if="anomalies.length" class="mt-1 list-disc list-inside text-sm text-gray-600">
@@ -7,27 +22,29 @@
       </ul>
     </div>
 
-    <div class="card p-4">
+    <div>
       <h5 class="font-polonium text-xl font-bold text-gray-900">Метаданные изображения</h5>
       <div v-if="imageSections.length === 0" class="mt-3 text-sm text-gray-500">
         Нет детальных метаданных.
       </div>
-      <div
-        v-for="section in imageSections"
-        :key="section.title"
-        class="mt-3 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden first:mt-0"
-      >
-        <div class="border-b border-gray-200 bg-gray-100 px-3 py-2">
-          <h6 class="font-polonium text-xl font-bold text-gray-900">{{ section.title }}</h6>
-        </div>
-        <div v-if="section.rows.length > 0" class="divide-y divide-gray-200">
-          <div
-            v-for="(row, rowIdx) in section.rows"
-            :key="`${section.title}-${rowIdx}`"
-            class="grid gap-2 px-3 py-2 sm:grid-cols-[180px_1fr]"
-          >
-            <div class="text-sm font-medium text-gray-600">{{ row.key }}</div>
-            <div class="break-words text-sm font-mono text-gray-900">{{ row.value }}</div>
+      <div v-else class="mt-4 space-y-4">
+        <div
+          v-for="section in imageSections"
+          :key="section.title"
+          class="overflow-hidden rounded-lg border-2 border-solid border-[#212121] bg-white"
+        >
+          <div class="bg-gray-100 px-3 py-2">
+            <h6 class="font-polonium text-xl font-bold text-gray-900">{{ section.title }}</h6>
+          </div>
+          <div v-if="section.rows.length > 0">
+            <div
+              v-for="(row, rowIdx) in section.rows"
+              :key="`${section.title}-${rowIdx}`"
+              class="grid gap-2 bg-white px-3 py-2 sm:grid-cols-[180px_1fr]"
+            >
+              <div class="text-sm font-medium text-gray-600">{{ row.key }}</div>
+              <div class="break-words text-sm font-mono text-gray-900">{{ row.value }}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -52,6 +69,23 @@ export default {
     aiProbability() {
       return (this.image.ai_indicators && this.image.ai_indicators.ai_probability) ?? 0
     },
+    metadataScore() {
+      const a = this.image.ai_indicators
+      if (!a) return null
+      return a.metadata_score != null ? a.metadata_score : null
+    },
+    finalScore() {
+      const a = this.image.ai_indicators
+      if (!a) return null
+      if (a.final_score != null) return a.final_score
+      return a.ai_probability ?? 0
+    },
+    mlMetadataLabel() {
+      const a = this.image.ai_indicators
+      if (!a || !a.metadata_ml_available) return '— (модель не загружена)'
+      if (a.ml_metadata_score == null) return '—'
+      return `${a.ml_metadata_score}%`
+    },
     softwareDetected() {
       const arr = this.image.ai_indicators && this.image.ai_indicators.software_detected
       return Array.isArray(arr) && arr.length ? arr.join(', ') : ''
@@ -65,6 +99,10 @@ export default {
     }
   },
   methods: {
+    scoreOrDash(v) {
+      if (v == null || v === '') return '—'
+      return `${v}%`
+    },
     aiChipClass(pct) {
       const n = Number(pct)
       if (n < 35) return 'status-chip-ai-low'

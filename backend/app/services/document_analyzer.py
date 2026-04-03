@@ -14,6 +14,8 @@ from typing import Dict, Any, List, Optional
 
 from app.services.image_analyzer import ImageAnalyzer
 from app.services.ai_detector import AIDetector
+from app.services.score_fusion import fuse_image_scores
+from app import ml_bridge
 
 logger = logging.getLogger(__name__)
 
@@ -183,6 +185,9 @@ class DocumentAnalyzer:
         all_anomalies = []
         all_evidence = []
         max_ai_prob = 0
+        max_metadata_score = 0
+        max_ml_metadata_score = 0
+        any_metadata_ml = False
         images_with_ai = 0
 
         for image_entry in extracted_images:
@@ -192,6 +197,27 @@ class DocumentAnalyzer:
             try:
                 metadata = self.image_analyzer.analyze(img_path)
                 ai_indicators = self.ai_detector.detect_ai_signs(metadata, file_type="image")
+                metadata_score = int(ai_indicators.get("metadata_score", ai_indicators.get("ai_probability", 0)))
+                ml_metadata_score, ml_ok = ml_bridge.predict_metadata_ml_safe(metadata)
+                final_score, fusion_method = fuse_image_scores(
+                    metadata_score,
+                    ml_metadata_score,
+                    ai_indicators,
+                    ml_ok,
+                )
+                ai_indicators["metadata_score"] = metadata_score
+                ai_indicators["ml_metadata_score"] = ml_metadata_score if ml_ok else None
+                ai_indicators["metadata_ml_available"] = ml_ok
+                ai_indicators["final_score"] = final_score
+                ai_indicators["fusion_method"] = fusion_method
+                ai_indicators["ai_probability"] = final_score
+                if ml_ok and ml_metadata_score is not None:
+                    if final_score >= 70 or metadata_score >= 70:
+                        ai_indicators["confidence"] = "high"
+                    elif final_score >= 35 or metadata_score >= 35:
+                        ai_indicators["confidence"] = "medium"
+                    else:
+                        ai_indicators["confidence"] = "low"
             except Exception as e:
                 logger.warning("Ошибка анализа изображения %s: %s", filename, e)
                 metadata = {"error": str(e)}
@@ -200,13 +226,26 @@ class DocumentAnalyzer:
                     "anomalies": [],
                     "evidence_from_metadata": [],
                     "ai_probability": 0,
+                    "metadata_score": 0,
+                    "ml_metadata_score": None,
+                    "metadata_ml_available": False,
+                    "final_score": 0,
+                    "fusion_method": "error",
                     "confidence": "low",
                 }
 
             prob = ai_indicators.get("ai_probability", 0)
+            ms = int(ai_indicators.get("metadata_score", prob))
+            meta_for_row = int(ai_indicators.get("metadata_score", ms))
+            mls = ai_indicators.get("ml_metadata_score")
             if prob > 0:
                 images_with_ai += 1
             max_ai_prob = max(max_ai_prob, prob)
+            max_metadata_score = max(max_metadata_score, ms)
+            if mls is not None:
+                max_ml_metadata_score = max(max_ml_metadata_score, int(mls))
+            if ai_indicators.get("metadata_ml_available"):
+                any_metadata_ml = True
             all_software.update(ai_indicators.get("software_detected", []))
             all_anomalies.extend(ai_indicators.get("anomalies", []))
             ev = ai_indicators.get("evidence_from_metadata") or []
@@ -225,6 +264,11 @@ class DocumentAnalyzer:
                         "anomalies": ai_indicators.get("anomalies", []),
                         "evidence_from_metadata": ev,
                         "ai_probability": prob,
+                        "metadata_score": meta_for_row,
+                        "ml_metadata_score": ai_indicators.get("ml_metadata_score"),
+                        "final_score": ai_indicators.get("final_score", prob),
+                        "fusion_method": ai_indicators.get("fusion_method", "metadata_only"),
+                        "metadata_ml_available": ai_indicators.get("metadata_ml_available", False),
                         "confidence": ai_indicators.get("confidence", "low"),
                     },
                 }
@@ -255,6 +299,11 @@ class DocumentAnalyzer:
                 "anomalies": all_anomalies,
                 "evidence_from_metadata": all_evidence,
                 "ai_probability": max_ai_prob,
+                "metadata_score": max_metadata_score,
+                "ml_metadata_score": max_ml_metadata_score if any_metadata_ml else None,
+                "final_score": max_ai_prob,
+                "metadata_ml_available": any_metadata_ml,
+                "fusion_method": "per_image_max",
                 "confidence": "high" if images_with_ai > 0 else "low",
             },
         }

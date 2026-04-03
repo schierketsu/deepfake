@@ -25,7 +25,7 @@
       </div>
     </header>
 
-    <main class="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
+    <main class="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-0 sm:px-6 sm:pt-8 sm:pb-0">
       <div v-if="isAnalyzing" class="card mb-6 p-4 flex items-center gap-4">
         <div class="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-gray-700" />
         <div>
@@ -34,7 +34,7 @@
         </div>
       </div>
 
-      <div v-else-if="!analysisResult" class="card p-8 text-center">
+      <div v-else-if="!analysisResult" class="card mb-6 p-8 text-center">
         <p class="text-sm text-gray-500 mb-2">Готово к проверке</p>
         <h2 class="font-polonium text-3xl font-bold text-gray-900">Загрузите DOCX или PPTX</h2>
       </div>
@@ -42,16 +42,15 @@
       <ReportView
         v-if="analysisResult"
         :result="analysisResult"
-        class="mb-8"
         @export-pdf="exportPDF"
         @export-json="exportJSON"
       />
     </main>
 
-    <footer class="border-t border-gray-200 bg-white mt-auto">
-      <div class="mx-auto max-w-6xl px-4 py-4 text-center text-sm text-gray-500">
+    <footer class="site-footer mt-auto">
+      <div class="mx-auto max-w-6xl px-4 pt-0 pb-3 sm:px-6 sm:pb-4 text-center text-sm text-[#FFF5E5]/80">
         <p>team @шаньга</p>
-        <p class="mt-1">Антидипфейк: Вызов • IT-Планета 2026</p>
+        <p class="mt-0.5">Антидипфейк: Вызов • IT-Планета 2026</p>
       </div>
     </footer>
   </div>
