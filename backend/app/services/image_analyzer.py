@@ -111,66 +111,80 @@ class ImageAnalyzer:
         return result
     
     def _get_exiftool_paths(self) -> List[str]:
-        """Получение возможных путей к exiftool"""
-        paths = []
-        
-        # Стандартные команды (если в PATH)
-        if platform.system() == 'Windows':
-            paths.extend(['exiftool.exe', 'exiftool'])
-        else:
-            paths.append('exiftool')
-        
-        # Локальный путь в проекте
-        # Получаем корень проекта (на 3 уровня выше от backend/app/services/image_analyzer.py)
+        """Получение возможных путей к exiftool (сначала явные пути в репозитории, затем PATH)."""
+        paths: List[str] = []
+        seen: set = set()
+
+        def add_unique(p: str) -> None:
+            ap = os.path.abspath(p) if not os.path.isabs(p) else p
+            if ap not in seen:
+                seen.add(ap)
+                paths.append(ap)
+
+        # Корень репозитория: на 3 уровня выше от backend/app/services/image_analyzer.py
         current_file = os.path.abspath(__file__)
         backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
         project_root = os.path.dirname(backend_dir)
-        
-        # Возможные пути к exiftool в проекте
+
+        # 1) Переопределение из окружения (полный путь к exe)
+        env_exe = (os.environ.get("EXIFTOOL_EXE") or "").strip().strip('"')
+        if env_exe and os.path.isfile(env_exe):
+            add_unique(env_exe)
+            logger.info(f"ExifTool из EXIFTOOL_EXE: {os.path.abspath(env_exe)}")
+
+        # 2) Локальная папка в проекте (exif/ExifTool.exe — типичная раскладка в репозитории)
         local_paths = [
-            os.path.join(project_root, 'exiftool-13.48_64', 'exiftool(-k).exe'),
-            os.path.join(project_root, 'exiftool-13.48_64', 'exiftool.exe'),
-            os.path.join(project_root, 'exiftool-13.48_64', 'exiftool'),
-            os.path.join(project_root, 'exiftool', 'exiftool.exe'),
-            os.path.join(project_root, 'exiftool', 'exiftool'),
+            os.path.join(project_root, "exif", "ExifTool.exe"),
+            os.path.join(project_root, "exif", "exiftool.exe"),
+            os.path.join(project_root, "exiftool-13.48_64", "exiftool.exe"),
+            os.path.join(project_root, "exiftool-13.48_64", "exiftool(-k).exe"),
+            os.path.join(project_root, "exiftool-13.48_64", "exiftool"),
+            os.path.join(project_root, "exiftool", "exiftool.exe"),
+            os.path.join(project_root, "exiftool", "exiftool"),
         ]
-        
-        # Также проверяем альтернативные варианты путей
-        # Иногда путь может быть определен относительно текущей директории
         try:
-            current_dir = os.getcwd()
-            alt_paths = [
-                os.path.join(current_dir, 'exiftool-13.48_64', 'exiftool(-k).exe'),
-                os.path.join(current_dir, 'exiftool-13.48_64', 'exiftool.exe'),
-            ]
-            local_paths.extend(alt_paths)
-        except:
+            cwd = os.getcwd()
+            local_paths.extend(
+                [
+                    os.path.join(cwd, "exif", "ExifTool.exe"),
+                    os.path.join(cwd, "exif", "exiftool.exe"),
+                    os.path.join(cwd, "exiftool-13.48_64", "exiftool.exe"),
+                    os.path.join(cwd, "exiftool-13.48_64", "exiftool(-k).exe"),
+                ]
+            )
+        except Exception:
             pass
-        
-        # Проверяем существование файлов перед добавлением
+
         for path in local_paths:
             abs_path = os.path.abspath(path)
-            if os.path.exists(abs_path):
-                logger.debug(f"Найден локальный ExifTool: {abs_path}")
-                paths.append(abs_path)
-                
-                # Для файла со скобками также пробуем создать временную копию без скобок
-                if '(' in abs_path and ')' in abs_path and platform.system() == 'Windows':
-                    try:
-                        # Создаем временную копию без скобок в той же директории
-                        exiftool_dir = os.path.dirname(abs_path)
-                        temp_exiftool = os.path.join(exiftool_dir, 'exiftool_temp.exe')
-                        if not os.path.exists(temp_exiftool):
-                            import shutil
-                            shutil.copy2(abs_path, temp_exiftool)
-                            logger.info(f"Создана временная копия ExifTool без скобок: {temp_exiftool}")
-                        if os.path.exists(temp_exiftool):
-                            paths.append(temp_exiftool)
-                    except Exception as e:
-                        logger.debug(f"Не удалось создать временную копию: {e}")
-            else:
-                logger.debug(f"Локальный путь не существует: {abs_path}")
-        
+            if not os.path.isfile(abs_path):
+                logger.debug(f"Локальный путь ExifTool не найден: {abs_path}")
+                continue
+            logger.info(f"Найден локальный ExifTool: {abs_path}")
+            add_unique(abs_path)
+            if "(" in abs_path and ")" in abs_path and platform.system() == "Windows":
+                try:
+                    exiftool_dir = os.path.dirname(abs_path)
+                    temp_exiftool = os.path.join(exiftool_dir, "exiftool_temp.exe")
+                    if not os.path.exists(temp_exiftool):
+                        shutil.copy2(abs_path, temp_exiftool)
+                        logger.info(f"Создана временная копия ExifTool без скобок: {temp_exiftool}")
+                    if os.path.isfile(temp_exiftool):
+                        add_unique(temp_exiftool)
+                except Exception as e:
+                    logger.debug(f"Не удалось создать временную копию ExifTool: {e}")
+
+        # 3) Команды из PATH — после локальных, чтобы не тратить время на лишние попытки
+        if platform.system() == "Windows":
+            for name in ("exiftool.exe", "exiftool"):
+                if name not in seen:
+                    seen.add(name)
+                    paths.append(name)
+        else:
+            if "exiftool" not in seen:
+                seen.add("exiftool")
+                paths.append("exiftool")
+
         return paths
     
     def _check_exiftool_available(self) -> bool:
@@ -188,124 +202,52 @@ class ImageAnalyzer:
         for i, path in enumerate(paths, 1):
             logger.info(f"Проверка пути {i}/{len(paths)}: {path}")
             try:
-                # Для Windows проверяем существование файла
-                if platform.system() == 'Windows':
-                    # Для путей без расширения (команды в PATH) пропускаем проверку существования
-                    if not path.endswith('.exe') and not os.path.exists(path):
-                        # Это может быть команда в PATH, пробуем запустить
-                        logger.debug(f"Путь без расширения, пробуем запустить: {path}")
-                        pass
-                    elif not os.path.exists(path):
-                        logger.debug(f"Путь не существует: {path}")
-                        continue
-                    else:
-                        logger.debug(f"Путь существует: {path}")
-                
-                # Для Windows с файлами, содержащими скобки, используем прямой запуск из директории
-                if platform.system() == 'Windows' and '(' in path and ')' in path:
-                    logger.info(f"Запуск файла со скобками: {path}")
-                    # Проверяем существование файла перед запуском
-                    if not os.path.exists(path):
-                        logger.warning(f"Файл не существует: {path}")
-                        continue
-                    
-                    logger.info(f"Файл существует, пробую прямой запуск из директории файла...")
-                    # Запускаем из директории файла с относительным путем - это обходит проблемы со скобками
-                    try:
-                        exiftool_dir = os.path.dirname(path)
-                        exiftool_file = os.path.basename(path)
-                        logger.debug(f"Директория: {exiftool_dir}, файл: {exiftool_file}")
-                        # Запускаем из директории ExifTool с относительным путем
-                        result = subprocess.run(
-                            [exiftool_file, '-ver'],
-                            capture_output=True,
-                            text=True,
-                            timeout=5,
-                            shell=False,
-                            cwd=exiftool_dir  # Запускаем из директории ExifTool
-                        )
-                        logger.info(f"Прямой запуск завершился: код={result.returncode}, stdout={result.stdout[:50] if result.stdout else 'пусто'}")
-                    except subprocess.TimeoutExpired:
-                        logger.warning(f"Таймаут при прямом запуске: {path}, пробуем cmd.exe")
-                        try:
-                            logger.info(f"Пробую cmd.exe для пути: {path}")
-                            result = subprocess.run(
-                                ['cmd.exe', '/c', f'"{path}"', '-ver'],
-                                capture_output=True,
-                                text=True,
-                                timeout=3,
-                                shell=False
-                            )
-                            logger.info(f"cmd.exe завершился: код={result.returncode}")
-                        except subprocess.TimeoutExpired:
-                            logger.warning(f"Таймаут при проверке через cmd.exe: {path}, пропускаем")
-                            continue
-                        except Exception as e:
-                            logger.warning(f"Ошибка при запуске через cmd.exe: {e}, пропускаем путь")
-                            continue
-                    except Exception as e:
-                        logger.warning(f"Ошибка при прямом запуске: {e}, пробуем cmd.exe")
-                        try:
-                            logger.info(f"Пробую cmd.exe как fallback для пути: {path}")
-                            result = subprocess.run(
-                                ['cmd.exe', '/c', f'"{path}"', '-ver'],
-                                capture_output=True,
-                                text=True,
-                                timeout=3,
-                                shell=False
-                            )
-                            logger.info(f"cmd.exe завершился: код={result.returncode}")
-                        except subprocess.TimeoutExpired:
-                            logger.warning(f"Таймаут при проверке через cmd.exe: {path}, пропускаем")
-                            continue
-                        except Exception as e2:
-                            logger.warning(f"Ошибка при запуске через cmd.exe: {e2}, пропускаем путь")
-                            continue
+                # Путь с каталогом, но файла нет — не вызываем subprocess
+                path_has_dir = os.sep in path or (platform.system() == 'Windows' and '/' in path)
+                if path_has_dir and not os.path.isfile(path):
+                    logger.debug(f"Файл не найден по пути: {path}")
+                    continue
+
+                # Для локального .exe WinError 2 лечится полным путём в argv[0], а не basename + cwd
+                if os.path.isfile(path):
+                    exe_abs = os.path.normpath(os.path.abspath(path))
+                    cwd_dir = os.path.dirname(exe_abs)
+                    logger.debug(f"Запуск ExifTool: {exe_abs} (cwd={cwd_dir})")
+                    result = subprocess.run(
+                        [exe_abs, '-ver'],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                        shell=False,
+                        cwd=cwd_dir,
+                    )
                 else:
-                    logger.debug(f"Запуск напрямую: {path}")
+                    logger.debug(f"Запуск по имени (PATH): {path}")
                     result = subprocess.run(
                         [path, '-ver'],
                         capture_output=True,
                         text=True,
-                        timeout=3,  # Уменьшен таймаут
-                        shell=False
+                        timeout=10,
+                        shell=False,
                     )
-                
+
                 logger.debug(f"Результат проверки пути {path}: код={result.returncode}")
                 if result.stdout:
                     logger.debug(f"stdout: {result.stdout[:100]}")
                 if result.stderr:
                     logger.debug(f"stderr: {result.stderr[:100]}")
-                
+
                 if result.returncode == 0:
                     version = result.stdout.strip()
                     logger.info(f"✓ ExifTool найден по пути: {path}, версия: {version}")
-                    # Кэшируем результат
                     ImageAnalyzer._exiftool_available = True
-                    ImageAnalyzer._exiftool_command = path
+                    ImageAnalyzer._exiftool_command = os.path.normpath(os.path.abspath(path)) if os.path.isfile(path) else path
                     return True
-                else:
-                    error_msg = result.stderr[:200] if result.stderr else 'нет сообщения об ошибке'
-                    logger.debug(f"ExifTool по пути {path} вернул код ошибки: {result.returncode}, stderr: {error_msg}")
-                    # Если это путь со скобками и PowerShell не сработал, пробуем cmd.exe как fallback
-                    if platform.system() == 'Windows' and '(' in path and ')' in path:
-                        logger.debug(f"Пробуем cmd.exe как fallback для пути со скобками")
-                        try:
-                            cmd_result = subprocess.run(
-                                ['cmd.exe', '/c', f'"{path}"', '-ver'],
-                                capture_output=True,
-                                text=True,
-                                timeout=3,
-                                shell=False
-                            )
-                            if cmd_result.returncode == 0:
-                                version = cmd_result.stdout.strip()
-                                logger.info(f"✓ ExifTool найден через cmd.exe: {path}, версия: {version}")
-                                ImageAnalyzer._exiftool_available = True
-                                ImageAnalyzer._exiftool_command = path
-                                return True
-                        except Exception as e:
-                            logger.debug(f"Fallback через cmd.exe также не сработал: {e}")
+
+                error_msg = (result.stderr or '')[:200] or 'нет сообщения об ошибке'
+                logger.warning(
+                    f"ExifTool по пути {path}: код {result.returncode}, stderr: {error_msg}"
+                )
             except FileNotFoundError as e:
                 logger.debug(f"ExifTool не найден по пути {path}: {e}")
                 continue
@@ -339,40 +281,36 @@ class ImageAnalyzer:
         
         for path in paths:
             try:
-                # Для Windows проверяем существование файла
-                if platform.system() == 'Windows':
-                    # Для путей без расширения (команды в PATH) пропускаем проверку существования
-                    if not path.endswith('.exe') and not os.path.exists(path):
-                        # Это может быть команда в PATH, пробуем запустить
-                        pass
-                    elif not os.path.exists(path):
-                        logger.debug(f"Файл не существует: {path}")
-                        continue
-                
-                # Для Windows с файлами, содержащими скобки, используем shell=True с кавычками
-                if platform.system() == 'Windows' and '(' in path and ')' in path:
+                path_has_dir = os.sep in path or (platform.system() == 'Windows' and '/' in path)
+                if path_has_dir and not os.path.isfile(path):
+                    continue
+                if os.path.isfile(path):
+                    exe_abs = os.path.normpath(os.path.abspath(path))
+                    cwd_dir = os.path.dirname(exe_abs)
                     result = subprocess.run(
-                        f'"{path}" -ver',
+                        [exe_abs, '-ver'],
                         capture_output=True,
                         text=True,
-                        timeout=5,
-                        shell=True
+                        timeout=10,
+                        shell=False,
+                        cwd=cwd_dir,
                     )
                 else:
                     result = subprocess.run(
                         [path, '-ver'],
                         capture_output=True,
                         text=True,
-                        timeout=5,
-                        shell=False
+                        timeout=10,
+                        shell=False,
                     )
-                
+
                 if result.returncode == 0:
                     version = result.stdout.strip()
                     logger.info(f"✓ ExifTool найден и работает: {path}, версия: {version}")
-                    # Кэшируем команду
-                    ImageAnalyzer._exiftool_command = path
-                    return path
+                    ImageAnalyzer._exiftool_command = (
+                        os.path.normpath(os.path.abspath(path)) if os.path.isfile(path) else path
+                    )
+                    return ImageAnalyzer._exiftool_command
             except FileNotFoundError as e:
                 logger.debug(f"ExifTool не найден по пути {path}: {e}")
                 continue
@@ -423,39 +361,18 @@ class ImageAnalyzer:
             logger.info(f"Команда: {exiftool_cmd}")
             logger.info(f"Файл: {file_path}")
             
-            # Для Windows с файлами, содержащими скобки, используем прямой запуск из директории
-            if platform.system() == 'Windows' and '(' in exiftool_cmd and ')' in exiftool_cmd:
-                logger.info(f"Выполнение команды ExifTool (путь со скобками): {exiftool_cmd}")
-                # Запускаем из директории ExifTool с относительным путем - это обходит проблемы со скобками
-                try:
-                    exiftool_dir = os.path.dirname(exiftool_cmd)
-                    exiftool_file = os.path.basename(exiftool_cmd)
-                    logger.debug(f"Директория: {exiftool_dir}, файл: {exiftool_file}")
-                    result = subprocess.run(
-                        [exiftool_file, '-j', '-G', '-a', '-u', '-n', file_path],
-                        capture_output=True,
-                        text=True,
-                        timeout=15,
-                        shell=False,
-                        cwd=exiftool_dir  # Запускаем из директории ExifTool
-                    )
-                except subprocess.TimeoutExpired as e:
-                    logger.error(f"Таймаут при выполнении ExifTool: {e}")
-                    raise
-                except Exception as e:
-                    logger.warning(f"Ошибка при прямом запуске: {e}, пробуем cmd.exe")
-                    # Fallback на cmd.exe
-                    try:
-                        result = subprocess.run(
-                            ['cmd.exe', '/c', f'"{exiftool_cmd}"', '-j', '-G', '-a', '-u', '-n', f'"{file_path}"'],
-                            capture_output=True,
-                            text=True,
-                            timeout=15,
-                            shell=False
-                        )
-                    except Exception as e2:
-                        logger.error(f"Ошибка при выполнении через cmd.exe: {e2}")
-                        raise
+            if os.path.isfile(exiftool_cmd):
+                exe_abs = os.path.normpath(os.path.abspath(exiftool_cmd))
+                cwd_dir = os.path.dirname(exe_abs)
+                logger.debug(f"ExifTool из файла: {exe_abs}, cwd={cwd_dir}")
+                result = subprocess.run(
+                    [exe_abs, '-j', '-G', '-a', '-u', '-n', file_path],
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                    shell=False,
+                    cwd=cwd_dir,
+                )
             else:
                 logger.debug(f"Выполнение команды: {[exiftool_cmd, '-j', '-G', '-a', '-u', '-n', file_path]}")
                 result = subprocess.run(
@@ -463,7 +380,7 @@ class ImageAnalyzer:
                     capture_output=True,
                     text=True,
                     timeout=10,
-                    shell=False
+                    shell=False,
                 )
             
             logger.debug(f"ExifTool завершился с кодом: {result.returncode}")
@@ -1140,12 +1057,23 @@ class ImageAnalyzer:
         if self._check_exiftool_available():
             exiftool_cmd = self._get_exiftool_command()
             try:
-                result = subprocess.run(
-                    [exiftool_cmd, '-XMP:All', '-IPTC:All', '-j', file_path],
-                    capture_output=True,
-                    text=True,
-                    timeout=30
-                )
+                if os.path.isfile(exiftool_cmd):
+                    exe_abs = os.path.normpath(os.path.abspath(exiftool_cmd))
+                    cwd_dir = os.path.dirname(exe_abs)
+                    result = subprocess.run(
+                        [exe_abs, '-XMP:All', '-IPTC:All', '-j', file_path],
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                        cwd=cwd_dir,
+                    )
+                else:
+                    result = subprocess.run(
+                        [exiftool_cmd, '-XMP:All', '-IPTC:All', '-j', file_path],
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                    )
                 
                 if result.returncode == 0 and result.stdout:
                     data = json.loads(result.stdout)
