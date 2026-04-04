@@ -1,9 +1,4 @@
-"""
-Признаки только из результата ImageAnalyzer (метаданные EXIF/XMP/C2PA, без пикселей).
-
-Датасет строится по **происхождению файла** (real vs AI), метка — в CSV;
-модель учится отличать паттерны метаданных, а не «сюжет» изображения.
-"""
+# фичи только из меты (exif/xmp/c2pa), без пикселей; метка в csv по происхождению файла
 from __future__ import annotations
 
 import json
@@ -12,7 +7,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-# Ключевые слова как в ImageAnalyzer / AIDetector (подсчёт вхождений в сериализованных метаданных)
+# те же ключевые слова что в imageanalyzer — считаем вхождения в json меты
 _AI_KEYWORDS = (
     "stable diffusion",
     "midjourney",
@@ -92,9 +87,7 @@ METADATA_FEATURE_NAMES: List[str] = [
 
 
 def extract_metadata_only_features(metadata: Optional[Dict[str, Any]]) -> Dict[str, float]:
-    """
-    Вектор признаков из словаря ``ImageAnalyzer.analyze()`` (без чтения пикселей).
-    """
+    # один словарь фич из analyze() imageanalyzer, картинку не трогаем
     if not metadata or metadata.get("error"):
         return {name: 0.0 for name in METADATA_FEATURE_NAMES}
 
@@ -153,7 +146,7 @@ def extract_metadata_only_features(metadata: Optional[Dict[str, Any]]) -> Dict[s
     flat = _flatten_meta_for_keywords(metadata)
     keyword_hits = _count_ai_keyword_hits(flat)
 
-    # Длина «следа» в символах (очень грубый proxy богатства метаданных)
+    # насколько раздута сериализованная мета (очень грубо)
     trace_len = float(min(len(flat), 100_000)) / 1000.0
 
     return {

@@ -25,7 +25,7 @@ REPORTS_DIR = os.path.join(tempfile.gettempdir(), "deepfake_reports")
 _UNICODE_FONT_REG: Optional[str] = None
 _UNICODE_FONT_BOLD: Optional[str] = None
 
-# Цвета оформления
+# палитра pdf
 _COLOR_TEXT = colors.HexColor("#111827")
 _COLOR_MUTED = colors.HexColor("#6b7280")
 _COLOR_BORDER = colors.HexColor("#e5e7eb")
@@ -36,12 +36,12 @@ _COLOR_ROW = colors.white
 
 
 def _content_width() -> float:
-    """Ширина области текста A4 с полями 0.75\" слева/справа."""
+    # ширина колонки на a4, поля по дюйму с каждой стороны
     return A4[0] - 1.5 * inch
 
 
 def _register_unicode_pdf_fonts() -> Tuple[str, str]:
-    """Регистрирует TTF с кириллицей; иначе fallback на Helvetica (латиница)."""
+    # ttf с кириллицей или helvetica
     global _UNICODE_FONT_REG, _UNICODE_FONT_BOLD
     if _UNICODE_FONT_REG is not None:
         return _UNICODE_FONT_REG, _UNICODE_FONT_BOLD or _UNICODE_FONT_REG
@@ -95,7 +95,7 @@ def _register_unicode_pdf_fonts() -> Tuple[str, str]:
 
 
 def _hr_line(w: float) -> Table:
-    """Тонкая разделительная линия на всю ширину."""
+    # линия-разделитель
     t = Table([[""]], colWidths=[w], rowHeights=[1])
     t.setStyle(
         TableStyle(
@@ -112,7 +112,7 @@ def _hr_line(w: float) -> Table:
 
 
 def _section_banner(title: str, font_bold: str, width: float) -> Table:
-    """Заголовок раздела: тёмная полоса на всю ширину, как шапка таблиц."""
+    # полоса-заголовок как у таблиц
     p = Paragraph(
         title,
         ParagraphStyle(
@@ -147,10 +147,7 @@ def _kv_table(
     font_bold: str,
     col_label: float = 2.15 * inch,
 ) -> Table:
-    """
-    Таблица «параметр — значение» с заголовком в первой строке.
-    rows[0] = [заголовок колонки 1, заголовок колонки 2]
-    """
+    # key-value, первая строка — шапка
     w = _content_width()
     cw = [col_label, w - col_label]
     n = len(rows)
@@ -181,7 +178,7 @@ def _kv_table(
 
 
 class ReportGenerator:
-    """Генератор отчетов в различных форматах"""
+    # pdf и прочее
 
     def __init__(self):
         self.reports_dir = REPORTS_DIR

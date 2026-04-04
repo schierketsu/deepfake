@@ -1,1 +1,1 @@
-"""ML utilities: feature extraction and inference for visual AI-generated image scoring."""
+# фичи и инференс для скоринга по метаданным

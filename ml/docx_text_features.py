@@ -1,7 +1,4 @@
-"""
-Табличные признаки по **тексту** DOCX (статистика строки), без эмбеддингов.
-Для обучения на папках data/raw/documents/{real,ai} и инференса в API.
-"""
+# простые числовые фичи по строке текста docx, без эмбеддингов
 from __future__ import annotations
 
 import math
@@ -11,7 +8,7 @@ from typing import Dict, List
 
 import numpy as np
 
-# Пунктуация латиница + типичные символы для рус/англ текста
+# пунктуация лат + то что часто в рус/англ
 _PUNCT_EXTRA = "«»—–…„“”"
 _PUNCT_SET = set(string.punctuation + _PUNCT_EXTRA)
 
@@ -32,7 +29,7 @@ DOCX_TEXT_FEATURE_NAMES: List[str] = [
 
 
 def extract_docx_text_features(text: str) -> Dict[str, float]:
-    """Вектор признаков из извлечённого plain text (может быть пустым)."""
+    # из сырого текста; пустой → нули
     empty = {name: 0.0 for name in DOCX_TEXT_FEATURE_NAMES}
     if not text or not text.strip():
         return empty

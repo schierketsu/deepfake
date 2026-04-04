@@ -1,11 +1,6 @@
 #!/usr/bin/env python3
-"""
-Сканирует data/raw/real и data/raw/ai, для каждого изображения извлекает метаданные
-(ImageAnalyzer) и табличные признаки **только из метаданных** → data/processed/features.csv.
-
-Датасет по происхождению файла (класс 0/1), без признаков пикселей.
-Запуск из корня репозитория: python scripts/build_dataset.py
-"""
+# real/ai папки → imageanalyzer → только метафичи → data/processed/features.csv
+# из корня: python scripts/build_dataset.py
 from __future__ import annotations
 
 import csv

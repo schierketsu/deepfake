@@ -1,11 +1,6 @@
 #!/usr/bin/env python3
-"""
-Сканирует data/raw/documents/real и data/raw/documents/ai, извлекает текст из .docx
-и табличные признаки [`ml/docx_text_features.py`](../ml/docx_text_features.py) →
-data/processed/docx_text_features.csv
-
-Запуск из корня репозитория: python scripts/build_dataset_docx.py
-"""
+# docx из documents/real|ai → текст → docx_text_features → data/processed/docx_text_features.csv
+# из корня: python scripts/build_dataset_docx.py
 from __future__ import annotations
 
 import csv

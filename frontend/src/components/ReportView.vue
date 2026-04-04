@@ -122,9 +122,9 @@
     </div>
 
     <p class="mt-2 text-xs text-gray-500 leading-snug">
-      Оценки носят вероятностный характер. «Изображения» — среднее по вложениям: половина суммы эвристики и ML по метаданным
-      (без «сюжета» пикселей). «Текст» — модель по статистике текста DOCX (не семантика). «Итог» для Word — среднее между
-      числом в «Изображения» и в «Текст», если оба есть; иначе показано доступное значение.
+      Оценки носят вероятностный характер. «Изображения» — среднее по вложениям того же итога, что в карточке каждой
+      картинки (слияние эвристики и ML по метаданным). «Текст» — модель по статистике текста DOCX (не семантика). «Итог»
+      для Word — среднее между «Изображения» и «Текст», если оба есть; иначе доступное значение.
     </p>
   </div>
   <div class="report-footer-band full-bleed" aria-hidden="true" />
@@ -256,13 +256,10 @@ export default {
         let sum = 0
         for (const img of imgs) {
           const ind = img.ai_indicators || {}
-          const h = Number(
-            ind.metadata_score != null ? ind.metadata_score : ind.ai_probability ?? 0
-          )
-          const mlOk = ind.metadata_ml_available
-          const mlRaw = ind.ml_metadata_score
-          const ml = mlOk && mlRaw != null ? Number(mlRaw) : null
-          const per = ml != null && !Number.isNaN(ml) ? (h + ml) / 2 : h
+          const per =
+            ind.final_score != null
+              ? Number(ind.final_score)
+              : Number(ind.ai_probability ?? 0)
           sum += Number.isFinite(per) ? per : 0
         }
         imageAvgNum = Math.round(sum / imgs.length)

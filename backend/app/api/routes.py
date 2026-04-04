@@ -11,18 +11,16 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Максимальный размер файла: 100MB
+# лимит аплоада 100 мб
 MAX_FILE_SIZE = 100 * 1024 * 1024
 
 @router.get("/health")
 async def health_check():
-    """Проверка статуса сервиса"""
     return {"status": "ok", "service": "deepfake-metadata-analyzer"}
 
 
 @router.get("/routes")
 async def list_routes():
-    """Список доступных эндпоинтов (только офисные файлы DOCX/PPTX)"""
     return {
         "endpoints": [
             "GET /api/health",
@@ -36,9 +34,7 @@ async def list_routes():
 @router.post("/analyze/document", response_model=AnalysisResponse)
 @router.post("/analyze/document/", response_model=AnalysisResponse)
 async def analyze_document(file: UploadFile = File(...)):
-    """
-    Анализ офисного документа DOCX/PPTX: извлечение метаданных и проверка встроенных изображений.
-    """
+    # docx/pptx: мета дока + картинки внутри
     temp_file = None
     try:
         content = await file.read()
@@ -229,7 +225,6 @@ async def analyze_document(file: UploadFile = File(...)):
 
 @router.get("/reports/{report_filename}")
 async def get_report(report_filename: str):
-    """Получение PDF отчета"""
     report_path = os.path.join(REPORTS_DIR, report_filename)
     
     if not os.path.exists(report_path):

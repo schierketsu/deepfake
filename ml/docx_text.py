@@ -1,6 +1,4 @@
-"""
-Извлечение сырого текста из DOCX (OOXML) без внешних зависимостей.
-"""
+# тянем plain text из docx через zip+xml, без сторонних либ
 from __future__ import annotations
 
 import zipfile
@@ -10,10 +8,7 @@ W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
 
 def extract_plain_text_from_docx(path: str) -> str:
-    """
-    Собирает текст из word/document.xml (элементы w:t, табы w:tab).
-    При ошибке или пустом документе возвращает пустую строку.
-    """
+    # w:t + w:tab из document.xml; кривой zip/xml → ""
     parts: list[str] = []
     try:
         with zipfile.ZipFile(path, "r") as zf:

@@ -1,14 +1,9 @@
-"""
-Слияние оценок: эвристика по метаданным (baseline) + ML **только по табличным признакам метаданных**.
-
-При наличии сильных фактов C2PA/Content Credentials приоритет у metadata_score.
-Если ML-модель недоступна, итог совпадает с metadata_score.
-"""
+# склеиваем эвристику по мете и ml по табличным метафичам; c2pa жёстче тянет к эвристике
 from typing import Any, Dict, Optional, Tuple
 
 
 def has_strong_c2pa_evidence(ai_result: Dict[str, Any]) -> bool:
-    """True, если есть убедительные факты из C2PA в evidence_from_metadata."""
+    # явные c2pa-доказательства в evidence или в software
     evidence = ai_result.get("evidence_from_metadata") or []
     if evidence:
         return True
@@ -24,13 +19,7 @@ def fuse_image_scores(
     weight_heuristic: float = 0.35,
     weight_ml: float = 0.65,
 ) -> Tuple[int, str]:
-    """
-    Возвращает (final_score_0_100, fusion_method).
-
-    - При сильном C2PA: итог ближе к эвристике; ML по метаданным слегка корректирует.
-    - При доступной ML-модели на метаданных: взвешенное среднее эвристики и ML.
-    - Без модели: только metadata_score.
-    """
+    # (итог 0–100, метка способа): c2pa → в основном эвристика; иначе blend или только мета
     meta = max(0, min(100, int(metadata_score)))
 
     if has_strong_c2pa_evidence(ai_result):

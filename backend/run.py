@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Скрипт для запуска backend сервера
-"""
+# поднять fastapi через uvicorn
 import uvicorn
 
 if __name__ == "__main__":

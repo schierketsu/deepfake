@@ -1,6 +1,4 @@
-"""
-Подключение пакета ``ml`` из корня репозитория (рядом с ``backend/``).
-"""
+# кладём корень репы в path чтобы импортить ml
 import sys
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -13,7 +11,7 @@ if str(_ROOT) not in sys.path:
 def predict_metadata_ml_safe(
     metadata: Optional[Dict[str, Any]],
 ) -> Tuple[Optional[int], bool]:
-    """ML по признакам метаданных (без пикселей). Не падает при отсутствии модели."""
+    # ml по мете, без модели просто none/false
     try:
         from ml.inference import predict_metadata_ml_score
 
@@ -27,12 +25,12 @@ def predict_visual_score_safe(
     image_path: str,
     metadata: Optional[Dict[str, Any]] = None,
 ) -> Tuple[Optional[int], bool]:
-    """Устарело: используйте predict_metadata_ml_safe(metadata); image_path игнорируется."""
+    # старое api, путь к файлу не нужен
     return predict_metadata_ml_safe(metadata)
 
 
 def extract_docx_plain_text_safe(path: str) -> str:
-    """Текст DOCX для NLP-слоя. Пустая строка при ошибке."""
+    # сырой текст docx для nlp; косяк → ""
     try:
         from ml.docx_text import extract_plain_text_from_docx
 
@@ -42,7 +40,7 @@ def extract_docx_plain_text_safe(path: str) -> str:
 
 
 def predict_docx_nlp_safe(plain_text: Optional[str]) -> Tuple[Optional[int], bool]:
-    """ML по статистике текста документа (отдельная модель model_docx.joblib)."""
+    # отдельная модель по текстовым фичам docx
     try:
         from ml.inference_docx import predict_docx_nlp_score
 

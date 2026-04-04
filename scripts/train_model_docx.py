@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""
-Обучение классификатора по признакам текста DOCX (StandardScaler + LogisticRegression).
-Сохраняет artifacts/model_docx.joblib и artifacts/training_metrics_docx.json.
-"""
+# docx-текстовые фичи → scaler+logreg → model_docx.joblib + training_metrics_docx.json
 from __future__ import annotations
 
 import json

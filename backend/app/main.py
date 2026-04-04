@@ -16,7 +16,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS настройки для frontend
+# cors — фронт с другого origin
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,7 +25,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Сначала корневые пути (без /api), чтобы GET /routes не давал 404 от расширений браузера
+# без префикса /api — чтобы /routes открывался из браузера
 root_router = APIRouter()
 
 @root_router.get("/")

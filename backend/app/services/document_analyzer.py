@@ -1,9 +1,4 @@
-"""
-Анализатор офисных документов (.docx/.pptx):
-- извлечение свойств документа из docProps/*.xml
-- извлечение встроенных изображений
-- анализ каждого изображения на признаки ИИ
-"""
+# docx/pptx: docprops, картинки из media/, прогон через imageanalyzer+ai
 import zipfile
 import os
 import logging
@@ -18,15 +13,12 @@ from app import ml_bridge
 
 logger = logging.getLogger(__name__)
 
-# Параллельный анализ вложений: ExifTool в подпроцессе отдаёт GIL — выигрыш на нескольких картинках.
+# несколько вложений — в потоках, exiftool в сабпроцессе и так отпускает gil
 _DOC_IMAGE_MAX_WORKERS = 8
 
 
 def _attach_programmatic_generation_trace(document_metadata: Dict[str, Any]) -> None:
-    """
-    Признаки программной сборки .docx/.pptx (OOXML): python-docx, pandoc, POI и т.п.
-    В API/UI только «Есть» / «Нет», без развёрнутых пояснений.
-    """
+    # по creator/description и т.д. — намек на автоген (python-docx, pandoc…); наружу только есть/нет
     creator = (document_metadata.get("creator") or "").strip()
     last_mod = (document_metadata.get("last_modified_by") or "").strip()
     description = (document_metadata.get("description") or "").strip()
@@ -59,7 +51,7 @@ def _analyze_single_embedded_image(
     ai_detector: AIDetector,
     image_entry: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Один вложенный снимок: метаданные + эвристики + ML (для пула потоков)."""
+    # одна картинка из архива: мета + эвристика + ml (для thread pool)
     filename = image_entry["filename"]
     blob = image_entry["data"]
 
@@ -142,7 +134,7 @@ def _analyze_single_embedded_image(
 
 
 def _format_zipentry_datetime(zinfo: zipfile.ZipInfo) -> Optional[str]:
-    """Дата модификации записи в ZIP (как в архиве), без часового пояса."""
+    # дата записи в zip как в архиве, без tz
     try:
         t = zinfo.date_time
         if not t or len(t) < 6:
@@ -156,7 +148,7 @@ def _format_zipentry_datetime(zinfo: zipfile.ZipInfo) -> Optional[str]:
 
 
 class DocumentAnalyzer:
-    """Извлечение метаданных и изображений из .docx/.pptx."""
+    # разбор офисного zip + картинки
 
     DOCX_MEDIA_PREFIX = "word/media/"
     PPTX_MEDIA_PREFIX = "ppt/media/"
@@ -175,7 +167,7 @@ class DocumentAnalyzer:
         if has_ppt and not has_word:
             return "powerpoint"
         if has_word and has_ppt:
-            # Редкий случай гибридного содержимого; выбираем по приоритету Word.
+            # бывает каша в zip — по умолчанию word
             return "word"
         raise ValueError("Не удалось определить тип офисного документа (ожидался DOCX/PPTX)")
 
@@ -248,13 +240,7 @@ class DocumentAnalyzer:
         return metadata
 
     def _extract_images(self, office_path: str, media_prefix: str) -> List[Dict[str, Any]]:
-        """
-        Читает встроенные изображения из DOCX/PPTX в память (без записи во временные файлы),
-        чтобы метаданные не подменялись датами ФС при извлечении.
-
-        Returns:
-            filename, archive_path, data (bytes), zip_entry_modified, size, extension
-        """
+        # картинки только в ram — иначе exif подхватит даты с диска
         extracted: List[Dict[str, Any]] = []
 
         try:
@@ -299,7 +285,7 @@ class DocumentAnalyzer:
         logical_filename: str,
         zip_entry_modified: Optional[str],
     ) -> None:
-        """Подмена только пути вида temp при старом пайплайне; добавляет контекст ZIP. Сырой вывод ExifTool не режем."""
+        # если в file.directory был temp — подменим на путь внутри дока; плюс блок office archive; exiftool как есть
         exif = metadata.get("exif")
         if not isinstance(exif, dict):
             return
@@ -334,9 +320,7 @@ class DocumentAnalyzer:
         gm["Office archive (ZIP)"] = office_rows
 
     def analyze_document(self, office_path: str) -> Dict[str, Any]:
-        """
-        Анализирует DOCX/PPTX: метаданные документа + анализ встроенных изображений.
-        """
+        # весь док: свойства + все вложенные картинки
         try:
             with zipfile.ZipFile(office_path, "r") as zf:
                 archive_names = zf.namelist()

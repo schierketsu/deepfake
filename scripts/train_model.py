@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""
-Обучение классификатора по **табличным признакам метаданных** (StandardScaler + LogisticRegression)
-и сохранение в artifacts/model.joblib + artifacts/training_metrics.json.
-"""
+# scaler+logreg по метафичам → model.joblib + training_metrics.json
 from __future__ import annotations
 
 import json

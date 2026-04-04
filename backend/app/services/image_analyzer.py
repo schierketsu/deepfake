@@ -15,9 +15,9 @@ import threading
 logger = logging.getLogger(__name__)
 
 class ImageAnalyzer:
-    """Анализатор метаданных изображений"""
-    
-    # Кэш для результатов проверки ExifTool (чтобы не проверять каждый раз)
+    # exif/xmp/c2pa через exiftool + запасной exifread/pil
+
+    # кэш: нашли ли exiftool и какой бинарь
     _exiftool_available: Optional[bool] = None
     _exiftool_command: Optional[str] = None
     _exiftool_check_lock = threading.Lock()
@@ -74,15 +74,7 @@ class ImageAnalyzer:
         file_bytes: Optional[bytes] = None,
         stdin_label: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Полный анализ метаданных изображения.
-
-        Укажите ровно один источник: file_path (файл на диске) или file_bytes (сырые байты,
-        например из DOCX/PPTX без записи во временный файл — ExifTool читает из stdin).
-
-        stdin_label: для file_bytes — логическое имя (например word/media/image3.jpeg), чтобы
-        в таблице были FileName/путь, как у файла на диске (ФС-даты всё равно недоступны).
-        """
+        # либо путь, либо байты (из docx без tmp); stdin_label — красивое имя для отчёта
         if (file_path is None) == (file_bytes is None):
             raise ValueError("Укажите ровно один из аргументов: file_path или file_bytes")
 
@@ -107,7 +99,7 @@ class ImageAnalyzer:
         exif_engine = exif_data.pop("_exif_extraction", None)
         result["exif"] = exif_data
 
-        # Первый прогон ExifTool уже отдаёт XMP/IPTC; второй вызов только дублировал работу.
+        # xmp уже в первом прогоне exiftool — второй раз не дергаем
         if exif_engine == "exiftool":
             xmp_data = self._build_xmp_from_exiftool_exif(exif_data, file_path=file_path, file_bytes=file_bytes)
         else:
@@ -119,18 +111,18 @@ class ImageAnalyzer:
         )
         result["image_characteristics"] = image_chars
         
-        # Проверка целостности метаданных
+        # целостность / противоречия
         integrity = self.check_metadata_integrity(exif_data, xmp_data, image_chars)
         result["metadata_integrity"] = integrity
         
-        # Поиск упоминаний ИИ-инструментов
+        # ключевые слова + c2pa в софте
         ai_software = self.detect_ai_software(exif_data, xmp_data)
         result["ai_software_detected"] = ai_software
         
         return result
     
     def _get_exiftool_paths(self) -> List[str]:
-        """Получение возможных путей к exiftool (сначала явные пути в репозитории, затем PATH)."""
+        # сначала exif/ в репе и env, потом path
         paths: List[str] = []
         seen: set = set()
 
@@ -140,18 +132,18 @@ class ImageAnalyzer:
                 seen.add(ap)
                 paths.append(ap)
 
-        # Корень репозитория: на 3 уровня выше от backend/app/services/image_analyzer.py
+        # корень репы от этого файла
         current_file = os.path.abspath(__file__)
         backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
         project_root = os.path.dirname(backend_dir)
 
-        # 1) Переопределение из окружения (полный путь к exe)
+        # 1) EXIFTOOL_EXE
         env_exe = (os.environ.get("EXIFTOOL_EXE") or "").strip().strip('"')
         if env_exe and os.path.isfile(env_exe):
             add_unique(env_exe)
             logger.info(f"ExifTool из EXIFTOOL_EXE: {os.path.abspath(env_exe)}")
 
-        # 2) Локальная папка в проекте (exif/ExifTool.exe — типичная раскладка в репозитории)
+        # 2) локальный exif/ в проекте
         local_paths = [
             os.path.join(project_root, "exif", "ExifTool.exe"),
             os.path.join(project_root, "exif", "exiftool.exe"),
@@ -193,7 +185,7 @@ class ImageAnalyzer:
                 except Exception as e:
                     logger.debug(f"Не удалось создать временную копию ExifTool: {e}")
 
-        # 3) Команды из PATH — после локальных, чтобы не тратить время на лишние попытки
+        # 3) то что в path
         if platform.system() == "Windows":
             for name in ("exiftool.exe", "exiftool"):
                 if name not in seen:
@@ -207,7 +199,7 @@ class ImageAnalyzer:
         return paths
     
     def _check_exiftool_available(self) -> bool:
-        """Проверка доступности exiftool (с кэшированием результата)"""
+        # один раз пробуем кандидатов, дальше из кэша
         with ImageAnalyzer._exiftool_check_lock:
             if ImageAnalyzer._exiftool_available is not None:
                 logger.debug(
@@ -291,12 +283,12 @@ class ImageAnalyzer:
             return False
 
     def _get_exiftool_command(self) -> str:
-        """Получение правильной команды exiftool для текущей ОС (с кэшированием)"""
-        # Используем кэшированную команду, если она есть
+        # какой exe реально завёлся
+        # из кэша
         if ImageAnalyzer._exiftool_command is not None:
             return ImageAnalyzer._exiftool_command
         
-        # Если ExifTool недоступен, возвращаем fallback сразу
+        # exiftool нет — строка-заглушка
         if ImageAnalyzer._exiftool_available is False:
             logger.debug("ExifTool недоступен (из кэша), используется fallback")
             return 'exiftool'
@@ -349,9 +341,8 @@ class ImageAnalyzer:
                 continue
         
         logger.warning("ExifTool не найден, будет использован fallback метод")
-        # Кэшируем отрицательный результат
         ImageAnalyzer._exiftool_command = 'exiftool'
-        return 'exiftool'  # Fallback
+        return 'exiftool'  # надеемся что в path
 
     def _patch_exiftool_stdin_output(
         self,
@@ -359,13 +350,7 @@ class ImageAnalyzer:
         byte_len: int,
         stdin_label: Optional[str],
     ) -> None:
-        """
-        Только дополняет JSON ExifTool при stdin — не затирает то, что вернул инструмент.
-
-        Даты File:* от ExifTool при потоке без файла на диске часто нулевые: это сырой ответ,
-        его не меняем. Реальные даты съёмки — в EXIF/XMP внутри байтов; для вложения в
-        DOCX/PPTX — время записи в ZIP (секция Office archive в отчёте).
-        """
+        # при stdin подмешиваем пояснение и размер; file dates от exiftool не трогаем — они фейк
         raw["File:InterpretationNote"] = (
             "Чтение через stdin/pамять: значения File Modify/Access/Create от ExifTool "
             "не соответствуют файловой системе (потока как файла на диске нет). "
@@ -391,7 +376,7 @@ class ImageAnalyzer:
         file_path: Optional[str] = None,
         file_bytes: Optional[bytes] = None,
     ) -> Dict[str, Any]:
-        """Извлечение метаданных через ExifTool: путь к файлу или сырые байты (stdin, без записи на диск)."""
+        # exiftool -j с файла или stdin
         if (file_path is None) == (file_bytes is None):
             raise ValueError("_extract_with_exiftool: укажите file_path или file_bytes")
 
@@ -523,7 +508,7 @@ class ImageAnalyzer:
         file_bytes: Optional[bytes] = None,
         stdin_label: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Извлечение EXIF (ExifTool и/или exifread+PIL). file_bytes — без записи временного файла."""
+        # основной путь exiftool, иначе exifread+pil+piexif
         import time
 
         if (file_path is None) == (file_bytes is None):
@@ -559,14 +544,14 @@ class ImageAnalyzer:
                     logger.warning(f"ExifTool вернул ошибку: {error_msg}")
                     logger.info("Используется fallback метод")
                 else:
-                    # Конвертируем данные exiftool в наш формат
+                    # json exiftool → наш словарь
                     logger.info("Начало конвертации данных ExifTool...")
                     convert_start = time.time()
                     try:
                         exif_data = self._convert_exiftool_data(exiftool_data)
                         convert_time = time.time() - convert_start
                         logger.info(f"Конвертация завершена за {convert_time:.2f} сек")
-                        # Если exiftool успешно извлек данные, используем их
+                        # ок — выходим с exiftool
                         if exif_data:
                             grouped_count = len(exif_data.get('_grouped_metadata', {}))
                             total_fields = sum(len(v) for v in exif_data.get('_grouped_metadata', {}).values())
@@ -585,7 +570,7 @@ class ImageAnalyzer:
         else:
             logger.info("ExifTool недоступен, используется fallback метод")
         
-        # Fallback на exifread и PIL
+        # запасной путь
         logger.info("Использование fallback метода (exifread/PIL)...")
         fallback_start = time.time()
         try:
@@ -597,7 +582,7 @@ class ImageAnalyzer:
 
             logger.info(f"Exifread извлек {len(tags)} тегов")
             
-            # Создаем группированные метаданные для отображения
+            # группы для ui
             grouped_metadata = {
                 'EXIF': [],
                 'Image': [],
@@ -607,7 +592,7 @@ class ImageAnalyzer:
                 'Other': []
             }
             
-            # Основные метаданные
+            # базовые поля
             if 'EXIF DateTimeOriginal' in tags:
                 exif_data['date_time'] = str(tags['EXIF DateTimeOriginal'])
                 grouped_metadata['EXIF'].append(['DateTimeOriginal', str(tags['EXIF DateTimeOriginal'])])
@@ -622,7 +607,7 @@ class ImageAnalyzer:
                 exif_data['camera_model'] = str(tags['Image Model'])
                 grouped_metadata['Image'].append(['Model', str(tags['Image Model'])])
             
-            # GPS координаты
+            # gps
             if 'GPS GPSLatitude' in tags and 'GPS GPSLongitude' in tags:
                 try:
                     lat = self._convert_to_degrees(tags['GPS GPSLatitude'])
@@ -640,7 +625,7 @@ class ImageAnalyzer:
                 except Exception as e:
                     logger.debug(f"Ошибка конвертации GPS: {e}")
             
-            # Параметры съемки
+            # выдержка iso и т.д.
             if 'EXIF ISOSpeedRatings' in tags:
                 exif_data['iso'] = str(tags['EXIF ISOSpeedRatings'])
                 grouped_metadata['EXIF'].append(['ISO', str(tags['EXIF ISOSpeedRatings'])])
@@ -662,7 +647,7 @@ class ImageAnalyzer:
                 exif_data['software'] = str(tags['EXIF Software'])
                 grouped_metadata['EXIF'].append(['Software', str(tags['EXIF Software'])])
             
-            # Размеры изображения
+            # размеры
             if 'EXIF ExifImageWidth' in tags:
                 exif_data['width'] = int(str(tags['EXIF ExifImageWidth']))
                 grouped_metadata['EXIF'].append(['ExifImageWidth', str(tags['EXIF ExifImageWidth'])])
@@ -670,19 +655,19 @@ class ImageAnalyzer:
                 exif_data['height'] = int(str(tags['EXIF ExifImageLength']))
                 grouped_metadata['EXIF'].append(['ExifImageLength', str(tags['EXIF ExifImageLength'])])
             
-            # Добавляем все остальные теги в группированные метаданные
+            # остальной мусор по секциям
             for tag_name, tag_value in tags.items():
                 tag_str = str(tag_name)
                 value_str = str(tag_value)
                 
-                # Пропускаем уже обработанные теги
+                # уже разобрали
                 if tag_name in ['EXIF DateTimeOriginal', 'Image DateTime', 'Image Make', 'Image Model',
                                'GPS GPSLatitude', 'GPS GPSLongitude', 'EXIF ISOSpeedRatings',
                                'EXIF ExposureTime', 'EXIF FNumber', 'EXIF FocalLength',
                                'Image Software', 'EXIF Software', 'EXIF ExifImageWidth', 'EXIF ExifImageLength']:
                     continue
                 
-                # Группируем по префиксу
+                # по префиксу тега
                 if tag_str.startswith('EXIF '):
                     clean_name = tag_str.replace('EXIF ', '')
                     grouped_metadata['EXIF'].append([clean_name, value_str])
@@ -701,14 +686,14 @@ class ImageAnalyzer:
                 else:
                     grouped_metadata['Other'].append([tag_str, value_str])
             
-            # Удаляем пустые секции
+            # выкинуть пустые
             grouped_metadata = {k: v for k, v in grouped_metadata.items() if v}
             
-            # Сохраняем группированные метаданные из exifread
+            # merge в _grouped_metadata
             if grouped_metadata:
                 if '_grouped_metadata' not in exif_data:
                     exif_data['_grouped_metadata'] = {}
-                # Объединяем с уже существующими метаданными из PIL
+                # дописать к тому что уже есть
                 for section, items in grouped_metadata.items():
                     if section in exif_data['_grouped_metadata']:
                         exif_data['_grouped_metadata'][section].extend(items)
@@ -722,19 +707,19 @@ class ImageAnalyzer:
             logger.error(f"Ошибка чтения EXIF через fallback метод: {str(e)}", exc_info=True)
             exif_data['error'] = f"Ошибка чтения EXIF: {str(e)}"
         
-        # Дополнительная проверка через PIL для извлечения всех доступных метаданных
+        # pil добирает то что exifread не взял
         try:
             pil_source = BytesIO(file_bytes) if file_bytes is not None else file_path
             with Image.open(pil_source) as img:
                 logger.info(f"Изображение открыто через PIL: формат={img.format}, размер={img.size}, режим={img.mode}")
                 
-                # Базовые метаданные изображения
+                # w/h
                 if 'width' not in exif_data:
                     exif_data['width'] = img.width
                 if 'height' not in exif_data:
                     exif_data['height'] = img.height
                 
-                # Добавляем в группированные метаданные
+                # в таблицу file
                 if '_grouped_metadata' not in exif_data:
                     exif_data['_grouped_metadata'] = {}
                 if 'File' not in exif_data['_grouped_metadata']:
@@ -745,24 +730,24 @@ class ImageAnalyzer:
                 exif_data['_grouped_metadata']['File'].append(['Height', str(img.height)])
                 exif_data['_grouped_metadata']['File'].append(['Mode', img.mode])
                 
-                # Для PNG файлов извлекаем метаданные из chunks
+                # png chunks
                 if img.format == 'PNG':
                     logger.info("Обработка PNG файла - извлечение chunks метаданных")
                     if 'PNG' not in exif_data['_grouped_metadata']:
                         exif_data['_grouped_metadata']['PNG'] = []
                     
-                    # PNG chunks доступны через img.text (для tEXt chunks)
+                    # tEXt
                     if hasattr(img, 'text') and img.text:
                         logger.info(f"Найдены PNG text chunks: {len(img.text)} элементов")
                         for key, value in img.text.items():
                             exif_data['_grouped_metadata']['PNG'].append([f'tEXt:{key}', str(value)])
-                            # Проверяем на XMP данные
+                            # вдруг xmp в chunk
                             if 'xmp' in key.lower() or 'xml' in key.lower():
                                 if 'XMP' not in exif_data['_grouped_metadata']:
                                     exif_data['_grouped_metadata']['XMP'] = []
-                                exif_data['_grouped_metadata']['XMP'].append([key, str(value)[:500]])  # Ограничиваем длину
+                                exif_data['_grouped_metadata']['XMP'].append([key, str(value)[:500]])
                     
-                    # Проверяем img.info на наличие PNG-specific метаданных
+                    # прочее из img.info
                     if img.info:
                         png_info_keys = ['transparency', 'gamma', 'chroma', 'icc_profile', 'dpi', 'compression']
                         for key in png_info_keys:
@@ -776,7 +761,7 @@ class ImageAnalyzer:
                                 else:
                                     exif_data['_grouped_metadata']['PNG'].append([key, str(value)])
                 
-                # EXIF данные через PIL
+                # exif бинарь из pil
                 exif_bytes = img.info.get('exif', None)
                 logger.info(f"EXIF данные в img.info: {'найдены' if exif_bytes else 'отсутствуют'}")
                 
@@ -785,7 +770,7 @@ class ImageAnalyzer:
                         exif_dict = piexif.load(exif_bytes)
                         logger.info(f"EXIF словарь загружен, секции: {list(exif_dict.keys())}")
                         
-                        # Обрабатываем все секции EXIF
+                        # все ifd
                         for ifd_name in ['0th', 'Exif', 'GPS', 'Interop', '1st', 'thumbnail']:
                             if ifd_name in exif_dict and exif_dict[ifd_name]:
                                 section_name = ifd_name.upper() if ifd_name != '0th' else 'Image'
@@ -811,13 +796,13 @@ class ImageAnalyzer:
                     except Exception as e:
                         logger.error(f"Ошибка загрузки EXIF через piexif: {e}", exc_info=True)
                 
-                # Также пробуем через _getexif для старых версий PIL
+                # старый pil
                 elif hasattr(img, '_getexif') and img._getexif() is not None:
                     logger.info("Найдены EXIF данные через PIL._getexif (старый метод)")
                     try:
                         exif_dict = piexif.load(img.info.get('exif', b''))
                         if exif_dict:
-                            # Обрабатываем все секции EXIF
+                            # все ifd
                             for ifd_name in ['0th', 'Exif', 'GPS', 'Interop', '1st', 'thumbnail']:
                                 if ifd_name in exif_dict and exif_dict[ifd_name]:
                                     section_name = ifd_name.upper() if ifd_name != '0th' else 'Image'
@@ -843,7 +828,7 @@ class ImageAnalyzer:
                     if 'Image' not in exif_data['_grouped_metadata']:
                         exif_data['_grouped_metadata']['Image'] = []
                     for key, value in img.info.items():
-                        if key not in ['exif', 'icc_profile']:  # Пропускаем бинарные данные
+                        if key not in ['exif', 'icc_profile']:
                             try:
                                 if isinstance(value, bytes):
                                     value = f"<binary data {len(value)} bytes>"
@@ -851,7 +836,7 @@ class ImageAnalyzer:
                             except Exception as e:
                                 logger.debug(f"Ошибка обработки info.{key}: {e}")
                 
-                # Software из EXIF
+                # software из 0th ifd
                 if hasattr(img, '_getexif') and img._getexif() is not None:
                     try:
                         exif_dict = piexif.load(img.info.get('exif', b''))
@@ -867,7 +852,7 @@ class ImageAnalyzer:
         
         fallback_time = time.time() - fallback_start
         
-        # Подсчитываем итоговое количество метаданных
+        # лог сколько секций
         if '_grouped_metadata' in exif_data:
             total_sections = len(exif_data['_grouped_metadata'])
             total_fields = sum(len(v) for v in exif_data['_grouped_metadata'].values())
@@ -887,7 +872,7 @@ class ImageAnalyzer:
         file_path: Optional[str],
         file_bytes: Optional[bytes],
     ) -> None:
-        """Добавляет XMP/IPTC из PIL (img.info), без повторного ExifTool."""
+        # докинуть xmp/iptc из pil если exiftool уже отдал основу
         try:
             pil_source = BytesIO(file_bytes) if file_bytes is not None else file_path
             with Image.open(pil_source) as img:
@@ -911,7 +896,7 @@ class ImageAnalyzer:
         file_path: Optional[str] = None,
         file_bytes: Optional[bytes] = None,
     ) -> Dict[str, Any]:
-        """Собирает XMP из полей первого прогона ExifTool + при необходимости PIL."""
+        # xmp из служебных ключей exiftool + pil
         xmp_data: Dict[str, Any] = {}
         xf = exif_data.get("_xmp_from_exiftool")
         ipf = exif_data.get("_iptc_from_exiftool")
@@ -923,14 +908,14 @@ class ImageAnalyzer:
         return xmp_data
     
     def _convert_exiftool_data(self, exiftool_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Конвертация данных exiftool в наш формат с группировкой по секциям"""
+        # плоский json → _grouped_metadata + c2pa + маппинг полей
         import time
         start_time = time.time()
         logger.info(f"Начало конвертации данных ExifTool, количество полей: {len(exiftool_data)}")
         converted = {}
-        grouped_metadata = {}  # Группировка по секциям для отображения
-        
-        # Маппинг основных полей (date_time обрабатывается отдельно с приоритетом)
+        grouped_metadata = {}
+
+        # плоские ключи для обратной совместимости
         field_mapping = {
             'EXIF:Make': 'camera_make',
             'EXIF:Model': 'camera_model',
@@ -949,7 +934,7 @@ class ImageAnalyzer:
             'EXIF:GPSLongitudeRef': 'gps_longitude_ref',
         }
         
-        # Группировка всех метаданных по секциям
+        # раскладка по префиксу тега
         sections = {
             'ExifTool': [],
             'System': [],
@@ -969,7 +954,7 @@ class ImageAnalyzer:
             'Other': []
         }
         
-        # Обработка GPS координат
+        # gps отдельно в lat/lon
         if 'EXIF:GPSLatitude' in exiftool_data and 'EXIF:GPSLongitude' in exiftool_data:
             try:
                 lat = float(exiftool_data.get('EXIF:GPSLatitude', 0))
@@ -989,7 +974,7 @@ class ImageAnalyzer:
             except (ValueError, TypeError):
                 pass
         
-        # Группируем все поля по секциям
+        # один проход по ключам
         logger.debug(f"Начало группировки {len(exiftool_data)} полей по секциям...")
         grouping_start = time.time()
         processed_count = 0
@@ -997,7 +982,7 @@ class ImageAnalyzer:
             processed_count += 1
             if processed_count % 100 == 0:
                 logger.debug(f"Обработано {processed_count}/{len(exiftool_data)} полей...")
-            # Пропускаем служебные поля
+            # служебное
             if key in ['SourceFile', 'ExifToolVersion']:
                 continue
                 
@@ -1032,14 +1017,13 @@ class ImageAnalyzer:
             elif key.startswith('Composite:'):
                 sections['Composite'].append((key.replace('Composite:', ''), value))
             else:
-                # Проверяем на C2PA в других форматах
+                # c2pa в странных ключах
                 if 'C2PA' in key.upper() or 'CBOR' in key.upper():
                     sections['CBOR'].append((key, value))
                 else:
                     sections['Other'].append((key, value))
         
-        # Сохраняем сгруппированные метаданные (только непустые секции)
-        # Явно строим списки [tag, value] из section_data, чтобы не захватывать внешние переменные
+        # непустые секции → списки [tag, value]
         grouped_metadata = {}
         for section_name, section_data in sections.items():
             if section_data:
@@ -1052,14 +1036,14 @@ class ImageAnalyzer:
                         rows.append(list(entry))
                 grouped_metadata[section_name] = rows
         converted['_grouped_metadata'] = grouped_metadata
-        # Отладка: первые ключи и первые строки секции File
+        # лог сэмпла
         if exiftool_data:
             sample_keys = list(exiftool_data.keys())[:5]
             logger.info(f"ExifTool sample keys: {sample_keys}")
         if sections.get('File'):
             logger.info(f"File section sample (first 2): {sections['File'][:2]}")
         
-        # Конвертация date_time с правильным приоритетом (только EXIF дата съёмки, не время файла)
+        # date_time только из exif съёмки, не file modify
         if 'EXIF:DateTimeOriginal' in exiftool_data:
             converted['date_time'] = str(exiftool_data['EXIF:DateTimeOriginal'])
             logger.info(f"date_time установлен из EXIF:DateTimeOriginal: {converted['date_time']}")
@@ -1068,22 +1052,20 @@ class ImageAnalyzer:
             logger.info(f"date_time установлен из EXIF:CreateDate: {converted['date_time']}")
         else:
             logger.info("date_time не установлен - нет EXIF даты съёмки (DateTimeOriginal или CreateDate)")
-        # НЕ используем File:FileModifyDate или другие поля времени файла
-        
-        # Конвертация основных полей для обратной совместимости
+        # основные плоские поля
         for exiftool_key, our_key in field_mapping.items():
             if exiftool_key in exiftool_data:
                 value = exiftool_data[exiftool_key]
-                # Пропускаем GPS поля, они обработаны отдельно
+                # gps уже выше
                 if 'GPS' not in exiftool_key:
                     converted[our_key] = str(value)
         
-        # Добавляем все остальные поля EXIF
+        # остальной EXIF:
         for key, value in exiftool_data.items():
             if key.startswith('EXIF:') and key not in field_mapping:
                 # Убираем префикс EXIF: и нормализуем ключ
                 clean_key = key.replace('EXIF:', '').replace(':', '_').lower()
-                # Пропускаем служебные поля
+                # служебное
                 if clean_key not in ['exiftoolversion', 'sourcefile'] and clean_key not in converted:
                     converted[clean_key] = str(value)
         
@@ -1205,7 +1187,7 @@ class ImageAnalyzer:
         file_path: Optional[str] = None,
         file_bytes: Optional[bytes] = None,
     ) -> Dict[str, Any]:
-        """Извлечение XMP/IPTC данных (ExifTool и PIL)."""
+        # xmp/iptc: exiftool или pil
         if (file_path is None) == (file_bytes is None):
             raise ValueError("extract_xmp_data: укажите file_path или file_bytes")
 
@@ -1313,7 +1295,7 @@ class ImageAnalyzer:
         file_bytes: Optional[bytes] = None,
         exif_data: Optional[Dict] = None,
     ) -> Dict[str, Any]:
-        """Анализ характеристик изображения для выявления признаков ИИ"""
+        # размеры, квадрат, типичные ai-резы, есть ли gps/камера в exif
         if (file_path is None) == (file_bytes is None):
             raise ValueError("analyze_image_characteristics: укажите file_path или file_bytes")
         exif_data = exif_data or {}
@@ -1382,7 +1364,7 @@ class ImageAnalyzer:
         return characteristics
     
     def check_metadata_integrity(self, exif_data: Dict, xmp_data: Dict, image_chars: Dict) -> Dict[str, Any]:
-        """Проверка целостности метаданных"""
+        # есть ли exif/xmp, снесли мету, странные комбо
         integrity = {
             "has_exif": len(exif_data) > 0 and 'error' not in exif_data,
             "has_xmp": len(xmp_data) > 0 and 'error' not in xmp_data,
@@ -1413,7 +1395,7 @@ class ImageAnalyzer:
         return integrity
     
     def detect_ai_software(self, exif_data: Dict, xmp_data: Dict) -> List[str]:
-        """Поиск упоминаний ИИ-инструментов в метаданных"""
+        # c2pa + софт + xmp + скан строк exif
         detected = []
         
         # Проверка C2PA метаданных (самый надежный способ детекции ИИ!)
@@ -1478,7 +1460,7 @@ class ImageAnalyzer:
         return list(set(detected))  # Удаление дубликатов
     
     def _convert_to_degrees(self, value) -> float:
-        """Конвертация GPS координат в градусы"""
+        # exifread rational → decimal degrees
         d = float(value.values[0].num) / float(value.values[0].den)
         m = float(value.values[1].num) / float(value.values[1].den)
         s = float(value.values[2].num) / float(value.values[2].den)

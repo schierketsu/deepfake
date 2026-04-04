@@ -1,7 +1,4 @@
-"""
-Загрузка обученной модели (sklearn) и предсказание **ml_metadata_score** 0–100
-только по признакам метаданных (без пикселей).
-"""
+# грузим joblib-модель и даём score 0–100 только по метафичам
 from __future__ import annotations
 
 import os
@@ -67,11 +64,7 @@ def predict_metadata_ml_score(
     metadata: Optional[Dict[str, Any]],
     model_path: Optional[Path] = None,
 ) -> Tuple[Optional[int], bool, Dict[str, Any]]:
-    """
-    Вероятность «ИИ по метаданным» 0–100 по обученной модели на табличных признаках.
-
-    Возвращает (score или None, success, debug).
-    """
+    # ии-по-мете 0–100; кортеж (score|none, ок ли, debug)
     debug: Dict[str, Any] = {"model_path": str(model_path or default_model_path())}
     if joblib is None:
         debug["error"] = "joblib not installed"
@@ -124,11 +117,10 @@ def clear_model_cache() -> None:
     _feature_names = None
 
 
-# Обратная совместимость со старым именем
+# старое имя — image_path игнорим, лучше predict_metadata_ml_score
 def predict_visual_score(
     image_path: str,
     metadata: Optional[Dict[str, Any]] = None,
     model_path: Optional[Path] = None,
 ) -> Tuple[Optional[int], bool, Dict[str, Any]]:
-    """Устарело: путь к файлу не используется; вызывайте predict_metadata_ml_score(metadata)."""
     return predict_metadata_ml_score(metadata, model_path=model_path)

@@ -1,6 +1,4 @@
-"""
-Инференс sklearn-модели по признакам текста DOCX → оценка 0–100 (класс 1 = «ai» в датасете).
-"""
+# docx-текст → sklearn → score 0–100 (в train класс 1 = ai)
 from __future__ import annotations
 
 import os
@@ -66,9 +64,7 @@ def predict_docx_nlp_score(
     plain_text: Optional[str],
     model_path: Optional[Path] = None,
 ) -> Tuple[Optional[int], bool, Dict[str, Any]]:
-    """
-    Вероятность класса «ai» по текстовым признакам, 0–100.
-    """
+    # ai по текстовым фичам, 0–100
     debug: Dict[str, Any] = {"model_path": str(model_path or default_docx_model_path())}
     if joblib is None:
         debug["error"] = "joblib not installed"

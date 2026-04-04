@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
-"""
-Оценка сохранённой модели метаданных изображений.
-
-По умолчанию: тот же stratified holdout (random_state=42, test_size=0.25), что при train_model.py.
-
-Опции:
-  --json-out PATH   сохранить отчёт (метрики + confusion matrix)
-  --cv N            N-fold stratified CV на всём CSV (честная оценка без отдельного теста)
-"""
+# меряем сохранённую модель по мете; по умолчанию как train (holdout 0.25, seed 42)
+# --json-out — отчёт в файл; --cv N — стратифицированный k-fold на всём csv
 from __future__ import annotations
 
 import argparse

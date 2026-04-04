@@ -1,7 +1,4 @@
-"""
-Опциональные **пиксельные** признаки (эксперименты). Основной пайплайн проекта — только метаданные:
-см. :mod:`ml.metadata_features` и :func:`ml.inference.predict_metadata_ml_score`.
-"""
+# пиксельные фичи — эксперимент; в проде в основном metadata_features + inference
 from __future__ import annotations
 
 import math
@@ -64,7 +61,7 @@ STANDARD_AI_SIZES = {
 
 
 def _entropy_from_hist(gray: np.ndarray) -> float:
-    """Shannon entropy of normalized intensity histogram."""
+    # энтропия по гистограмме яркости
     g = gray.astype(np.float64).ravel()
     g = np.clip(g, 0.0, 255.0)
     hist, _ = np.histogram(g, bins=64, range=(0, 255), density=True)
@@ -73,7 +70,7 @@ def _entropy_from_hist(gray: np.ndarray) -> float:
 
 
 def extract_visual_features_from_array(rgb: np.ndarray) -> Dict[str, float]:
-    """Признаки из RGB массива uint8 (H, W, 3)."""
+    # фичи из rgb массива (h,w,3)
     if rgb.ndim != 3 or rgb.shape[2] < 3:
         raise ValueError("Expected RGB image (H, W, 3)")
     r = rgb[:, :, 0].astype(np.float64)
@@ -118,7 +115,7 @@ def extract_visual_features_from_array(rgb: np.ndarray) -> Dict[str, float]:
 
 
 def extract_metadata_feature_vector(metadata: Optional[Dict[str, Any]]) -> Dict[str, float]:
-    """Бинарные и счётные признаки из результата ImageAnalyzer."""
+    # счётчики/флаги из того что вернул imageanalyzer
     if not metadata:
         return {
             "aspect_ratio": 1.0,
@@ -183,10 +180,7 @@ def vectorize_features(combined: Dict[str, float], names: Optional[List[str]] = 
 
 
 def extract_all_features(image_path: str, metadata: Optional[Dict[str, Any]] = None) -> Tuple[Dict[str, float], List[str]]:
-    """
-    Полный вектор признаков для одного изображения.
-    Возвращает (dict, ordered_names).
-    """
+    # всё вместе: пиксели + мета, вторым возвращаем имена колонок
     metadata = metadata or {}
     with Image.open(image_path) as im:
         im = im.convert("RGB")
@@ -198,7 +192,7 @@ def extract_all_features(image_path: str, metadata: Optional[Dict[str, Any]] = N
 
 
 def load_image_rgb(image_path: str, max_side: int = 1024) -> np.ndarray:
-    """Загрузка и при необходимости даунскейл для скорости."""
+    # грузим картинку, длинную сторону режем если больше max_side
     with Image.open(image_path) as im:
         im = im.convert("RGB")
         w, h = im.size

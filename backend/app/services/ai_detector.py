@@ -2,14 +2,8 @@ from typing import Dict, Any, List
 import math
 
 class AIDetector:
-    """
-    Heuristic baseline: правила по EXIF/XMP/C2PA и простым признакам изображения.
+    # эвристика по exif/xmp/c2pa; metadata_score потом мешают с ml в documentanalyzer
 
-    Оценка ``metadata_score`` (0–100) — эвристический baseline; итоговая ``ai_probability``
-    задаётся в :class:`DocumentAnalyzer` через слияние с ML по табличным признакам
-    метаданных (``ml_metadata_score``).
-    """
-    
     def __init__(self):
         self.ai_software_list = [
             "stable diffusion",
@@ -57,16 +51,7 @@ class AIDetector:
         ]
     
     def detect_ai_signs(self, metadata: Dict[str, Any], file_type: str = "image") -> Dict[str, Any]:
-        """
-        Обнаружение признаков ИИ-вмешательства
-        
-        Args:
-            metadata: Метаданные файла
-            file_type: Тип файла ("image" или "video")
-            
-        Returns:
-            Словарь с обнаруженными признаками и вероятностью
-        """
+        # image | video — разные ветки
         result = {
             "software_detected": [],
             "heuristics": {},
@@ -94,10 +79,7 @@ class AIDetector:
         return result
     
     def _build_c2pa_evidence(self, metadata: Dict[str, Any]) -> List[str]:
-        """
-        Формирует список фактов из метаданных C2PA/Content Credentials.
-        Основа для вывода «по фактам», без интерпретаций.
-        """
+        # человекочитаемые строки из c2pa для отчёта
         facts = []
         exif = metadata.get("exif", {}) or {}
         c2pa = exif.get("_c2pa_metadata") or {}
@@ -202,7 +184,7 @@ class AIDetector:
         return facts
     
     def _detect_image_ai_signs(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """Детекция ИИ-признаков: приоритет — факты из C2PA, затем эвристики."""
+        # сначала c2pa, потом квадраты/размеры и т.д.
         result = {
             "software_detected": [],
             "heuristics": {},
@@ -320,7 +302,7 @@ class AIDetector:
         return result
     
     def _detect_video_ai_signs(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """Детекция ИИ-признаков в видео"""
+        # энкодер, gop, fps
         result = {
             "software_detected": [],
             "heuristics": {},
@@ -359,10 +341,7 @@ class AIDetector:
         return result
 
     def calculate_ai_probability(self, indicators: Dict[str, Any]) -> int:
-        """
-        Расчёт вероятности ИИ-вмешательства (0–100%).
-        Приоритет: факты из C2PA/метаданных → эвристики.
-        """
+        # 0–100: c2pa рубит сразу высоко, иначе веса эвристик
         evidence = indicators.get("evidence_from_metadata", [])
         software_detected = indicators.get("software_detected", [])
         
@@ -467,10 +446,7 @@ class AIDetector:
         indicators: Dict[str, Any],
         metadata: Dict[str, Any]
     ) -> str:
-        """
-        Оценка достоверности анализа.
-        Высокая — по фактам из C2PA/метаданных; средняя — по эвристикам; низкая — мало данных.
-        """
+        # high если c2pa/софт в мете, иначе по эвристикам
         # Высокая: факты из метаданных (C2PA, подпись, источник)
         if indicators.get("evidence_from_metadata"):
             return "high"
@@ -487,12 +463,7 @@ class AIDetector:
         image_path: str, 
         metadata: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """
-        Анализ характеристик изображения (качество, шум, симметрия)
-        
-        Примечание: Это требует дополнительных библиотек для анализа изображений
-        (например, OpenCV, scikit-image). Пока возвращаем базовую структуру.
-        """
+        # заглушка под opencv/skimage — пока пустые поля
         characteristics = {
             "quality_score": None,
             "noise_level": None,
