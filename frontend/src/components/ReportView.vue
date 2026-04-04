@@ -18,7 +18,33 @@
               :key="`author-${idx}`"
               class="flex w-full min-w-0 flex-col gap-1 sm:w-auto"
             >
-              <div class="text-sm font-medium text-gray-600">{{ row.label }}</div>
+              <div class="text-sm font-medium text-gray-600">
+                <template v-if="row.helpTooltip">
+                  <span class="relative inline-block pr-6">
+                    {{ row.label }}
+                    <span
+                      class="group absolute right-0 top-1/2 inline-flex -translate-y-1/2 cursor-help select-none"
+                      tabindex="0"
+                    >
+                      <img
+                        src="/iconhelp.png"
+                        alt=""
+                        width="20"
+                        height="20"
+                        class="h-5 w-5 object-contain"
+                        decoding="async"
+                      />
+                      <span
+                        role="tooltip"
+                        class="pointer-events-none invisible absolute bottom-full left-1/2 z-30 mb-2 w-72 max-w-[min(18rem,calc(100vw-2rem))] -translate-x-1/2 whitespace-normal rounded-md bg-gray-900 px-2.5 py-2 text-left text-xs font-normal font-sans normal-case leading-snug tracking-normal text-white opacity-0 shadow-lg transition-opacity duration-150 group-focus-visible:visible group-focus-visible:opacity-100 group-hover:visible group-hover:opacity-100 sm:w-80"
+                      >
+                        {{ row.helpTooltip }}
+                      </span>
+                    </span>
+                  </span>
+                </template>
+                <template v-else>{{ row.label }}</template>
+              </div>
               <div class="break-words text-sm font-mono text-gray-900">{{ row.value }}</div>
             </div>
           </div>
@@ -81,7 +107,9 @@
         <template v-if="selectedImage">
           <ImageDetailPanel :image="selectedImage" :image-index="selectedId" />
         </template>
-        <p v-else class="text-sm text-gray-500">Выберите изображение в списке слева</p>
+        <p v-else-if="documentHasEmbeddedImages" class="text-sm text-gray-500">
+          Выберите изображение в списке слева
+        </p>
       </div>
     </div>
 
@@ -103,6 +131,10 @@
 import MetadataTable from './MetadataTable.vue'
 import ImageDetailPanel from './ImageDetailPanel.vue'
 import { getReport } from '../services/api'
+
+/** Подсказка у иконки «След генерации» */
+const GENERATION_TRACE_HELP_TOOLTIP =
+  'Если в метаданных файла в служебных свойствах (автор, описание и др.) видно, что документ создан или собран программно — например, через библиотеку python-docx, Pandoc и подобное, — показываем «Есть». Это не доказательство «текст написал ИИ», а признак того, что контейнер .docx собрали скриптом или библиотекой, а не обычным сохранением из Word.'
 
 export default {
   name: 'ReportView',
@@ -137,7 +169,16 @@ export default {
       if (this.selectedId < 0 || this.selectedId >= images.length) return null
       return images[this.selectedId] || null
     },
+    /** Есть ли вложенные изображения для анализа (иначе полоса «Вероятность ИИ» — прочерк, серый). */
+    documentHasEmbeddedImages() {
+      const m = this.result.metadata
+      if (!m) return false
+      const c = m.images_count
+      if (typeof c === 'number') return c > 0
+      return (m.images || []).length > 0
+    },
     waveFillColor() {
+      if (!this.documentHasEmbeddedImages) return '#D1D5DB'
       const pct = (this.selectedImage?.ai_indicators && this.selectedImage.ai_indicators.ai_probability) ?? 0
       const n = Number(pct)
       if (n < 35) return '#00FF00'
@@ -145,6 +186,7 @@ export default {
       return '#FF1493'
     },
     waveLabel() {
+      if (!this.documentHasEmbeddedImages) return 'Вероятность ИИ: -'
       const pct = (this.selectedImage?.ai_indicators && this.selectedImage.ai_indicators.ai_probability) ?? 0
       const n = Number(pct)
       if (n < 35) return 'Вероятность ИИ: низкая'
@@ -152,6 +194,7 @@ export default {
       return 'Вероятность ИИ: высокая'
     },
     waveLabelClass() {
+      if (!this.documentHasEmbeddedImages) return 'wave-strip-label--na'
       const pct = (this.selectedImage?.ai_indicators && this.selectedImage.ai_indicators.ai_probability) ?? 0
       const n = Number(pct)
       if (n < 35) return 'wave-strip-label--low'
@@ -183,9 +226,18 @@ export default {
         ['last_modified_by', 'Последний редактор']
       ]
       const has = (v) => v !== null && v !== undefined && v !== ''
-      return map
+      const rows = map
         .filter(([key]) => has(source[key]))
         .map(([key, label]) => ({ label, value: source[key] }))
+      const traceLabel =
+        source.generation_trace_label ||
+        (source.generation_trace_present ? 'Есть' : 'Нет')
+      rows.push({
+        label: 'След генерации',
+        value: traceLabel,
+        helpTooltip: GENERATION_TRACE_HELP_TOOLTIP
+      })
+      return rows
     },
     documentScores() {
       const s = this.result.summary

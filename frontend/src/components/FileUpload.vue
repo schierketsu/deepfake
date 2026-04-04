@@ -44,9 +44,19 @@
       </div>
     </div>
 
-    <div v-if="effectiveError" class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
-      <p class="text-sm text-red-800">{{ effectiveError }}</p>
-      <button type="button" class="secondary-btn mt-3" @click="openFileDialog">Выбрать другой файл</button>
+    <div
+      v-if="effectiveError"
+      class="file-upload-error-banner mt-4 rounded-lg border border-red-200 bg-red-50 p-4"
+    >
+      <p class="text-sm">{{ effectiveError }}</p>
+      <button
+        v-if="!formatUnsupported"
+        type="button"
+        class="secondary-btn mt-3"
+        @click="openFileDialog"
+      >
+        Выбрать другой файл
+      </button>
     </div>
   </div>
 </template>
@@ -76,6 +86,7 @@ export default {
       selectedFile: null,
       isDragging: false,
       error: null,
+      formatUnsupported: false,
       uploadProgress: 0,
       MAX_FILE_SIZE: 100 * 1024 * 1024
     }
@@ -111,6 +122,7 @@ export default {
 
     processFile(file) {
       this.error = null
+      this.formatUnsupported = false
       this.uploadProgress = 0
       this.$emit('analysis-reset')
 
@@ -125,7 +137,8 @@ export default {
       const isPptx = file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || lowerName.endsWith('.pptx')
 
       if (!isDocx && !isPptx) {
-        this.error = 'Поддерживаются только документы Word (DOCX) и PowerPoint (PPTX).'
+        this.formatUnsupported = true
+        this.error = 'Данный формат файла не поддерживается.'
         this.$emit('analysis-error', this.error)
         return
       }
@@ -137,6 +150,7 @@ export default {
     async analyzeFile(file) {
       this.$emit('analysis-started')
       this.setProgress(8)
+      this.formatUnsupported = false
       this.$emit('analysis-error', null)
 
       try {
@@ -160,6 +174,9 @@ export default {
           this.error = 'Эндпоинт анализа офисного файла не найден (404). Проверьте, что backend обновлен и маршрут /api/analyze/document доступен.'
         } else if (status === 413) {
           this.error = 'Файл превышает допустимый размер на сервере.'
+        } else if (status === 400 && this._isUnsupportedFormatDetail(detail)) {
+          this.formatUnsupported = true
+          this.error = 'Данный формат файла не поддерживается.'
         } else {
           this.error = typeof detail === 'string'
             ? detail
@@ -178,9 +195,20 @@ export default {
       this.$emit('analysis-progress', value)
     },
 
+    _isUnsupportedFormatDetail(detail) {
+      const d =
+        typeof detail === 'string'
+          ? detail
+          : Array.isArray(detail)
+            ? String(detail[0]?.msg || detail[0] || '')
+            : ''
+      return /DOCX/i.test(d) && /PPTX/i.test(d) && /поддержива/i.test(d)
+    },
+
     clearFile() {
       this.selectedFile = null
       this.error = null
+      this.formatUnsupported = false
       this.uploadProgress = 0
       this.$emit('analysis-reset')
       if (this.$refs.fileInput) {

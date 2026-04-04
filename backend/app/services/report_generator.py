@@ -578,9 +578,14 @@ class ReportGenerator:
         story.append(Spacer(1, 0.1 * inch))
 
         meta_rows = [["Поле", "Значение"]]
+        trace_label = document_meta.get("generation_trace_label")
+        if trace_label is None:
+            trace_label = "Есть" if document_meta.get("generation_trace_present") else "Нет"
         meta_fields = [
             ("Автор", document_meta.get("creator")),
             ("Последний редактор", document_meta.get("last_modified_by")),
+            ("След генерации", trace_label),
+            ("Описание (dc:description)", document_meta.get("description")),
             ("Создан", document_meta.get("created")),
             ("Изменён", document_meta.get("modified")),
             ("Печать", document_meta.get("last_printed")),

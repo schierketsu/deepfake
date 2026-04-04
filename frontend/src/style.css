@@ -108,6 +108,11 @@
   .header-dark .content-block .text-base {
     color: #FFF5E5;
   }
+  /* Сообщение об ошибке на светлом фоне — не наследовать кремовый цвет шапки */
+  .header-dark .content-block .file-upload-error-banner,
+  .header-dark .content-block .file-upload-error-banner p {
+    color: #111827;
+  }
 
   /* Заголовки в блоке результатов — как подпись «Перетащите документ сюда…» */
   main .content-block h3,
@@ -453,6 +458,9 @@
   .results-detail .wave-strip-label--mid,
   .results-detail .wave-strip-label--high {
     color: #111827;
+  }
+  .results-detail .wave-strip-label--na {
+    color: #6b7280;
   }
 }
 
