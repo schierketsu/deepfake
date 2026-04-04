@@ -1,10 +1,12 @@
 <template>
   <div class="report-view">
-  <div class="report-view-shell px-5 pt-5 sm:px-6 sm:pt-6 pb-5 sm:pb-6">
-    <div class="mb-6 space-y-6">
+  <div class="report-view-shell px-3 pt-4 pb-4 sm:px-6 sm:pt-6 sm:pb-6">
+    <div class="mb-4 space-y-5 sm:mb-6 sm:space-y-6">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div class="min-w-0">
-          <h2 class="font-polonium text-3xl font-bold text-gray-900">Результаты проверки</h2>
+          <h2 class="font-polonium text-2xl font-bold leading-tight text-gray-900 sm:text-3xl sm:leading-normal">
+            Результаты проверки
+          </h2>
           <p v-if="fileInfo" class="mt-1 text-sm text-gray-500">
             <span class="font-medium text-gray-900 break-words">{{ fileInfo.name }}</span>
             <span class="text-gray-500"> · {{ formatFileSize(fileInfo.size) }}</span>
@@ -50,7 +52,9 @@
           </div>
         </div>
         <aside v-if="documentScores" class="w-full shrink-0 sm:w-max sm:max-w-none sm:self-start">
-          <dl class="report-doc-summary__metrics font-polonium font-bold uppercase tracking-[0.1em] text-gray-900">
+          <dl
+            class="report-doc-summary__metrics font-polonium font-bold uppercase tracking-[0.06em] text-gray-900 sm:tracking-[0.1em]"
+          >
             <div class="report-doc-summary__row report-doc-summary__row--compact">
               <dt class="text-sm sm:text-base">Изображения</dt>
               <dd class="text-base sm:text-lg">{{ documentScores.imagesCombined }}</dd>
@@ -74,8 +78,8 @@
         <MetadataTable :metadata="result.metadata" :file-type="result.file_type" :show-only-document-meta="true" />
       </div>
 
-      <div v-if="evidenceList.length > 0" class="card p-4">
-        <h3 class="font-polonium text-xl font-bold text-gray-900">Факты из метаданных</h3>
+      <div v-if="evidenceList.length > 0" class="card p-3 sm:p-4">
+        <h3 class="font-polonium text-lg font-bold text-gray-900 sm:text-xl">Факты из метаданных</h3>
         <ul class="mt-3 space-y-2">
           <li v-for="(fact, index) in evidenceList" :key="index" class="text-sm text-gray-700 border-l-2 border-gray-200 pl-3">
             <span v-for="(paragraph, pIndex) in formatFactText(fact)" :key="pIndex">{{ paragraph }}{{ pIndex < formatFactText(fact).length - 1 ? '. ' : '' }}</span>
@@ -84,9 +88,9 @@
       </div>
     </div>
 
-    <div class="results-two-column mb-6">
-      <aside class="results-sidebar">
-        <h3 class="font-polonium text-xl font-bold text-gray-900 mb-3">Изображения в документе</h3>
+    <div class="results-two-column mb-4 sm:mb-6">
+      <aside class="results-sidebar results-sidebar--scroll-mobile">
+        <h3 class="font-polonium text-lg font-bold text-gray-900 mb-2 sm:mb-3 sm:text-xl">Изображения в документе</h3>
         <nav class="results-nav">
           <button
             v-for="(img, index) in (result.metadata?.images || [])"
@@ -116,12 +120,12 @@
       </div>
     </div>
 
-    <div class="report-actions-row grid gap-3 sm:grid-cols-2 mt-6">
+    <div class="report-actions-row mt-4 grid gap-3 sm:mt-6 sm:grid-cols-2">
       <button type="button" @click="handleExportPDF" class="primary-btn w-full">Скачать PDF</button>
       <button type="button" @click="handleExportJSON" class="secondary-btn w-full">Скачать JSON</button>
     </div>
 
-    <p class="mt-2 text-xs text-gray-500 leading-snug">
+    <p class="mt-2 text-[11px] text-gray-500 leading-snug sm:text-xs">
       Оценки носят вероятностный характер. «Изображения» — среднее по вложениям того же итога, что в карточке каждой
       картинки (слияние эвристики и ML по метаданным). «Текст» — модель по статистике текста DOCX (не семантика). «Итог»
       для Word — среднее между «Изображения» и «Текст», если оба есть; иначе доступное значение.

@@ -1,6 +1,6 @@
 <template>
-  <div class="content-block p-5 sm:p-6">
-    <h2 class="font-polonium text-3xl font-bold text-gray-900 mb-4">Загрузка файла</h2>
+  <div class="content-block p-4 sm:p-6">
+    <h2 class="font-polonium text-2xl font-bold text-gray-900 mb-3 sm:mb-4 sm:text-3xl">Загрузка файла</h2>
 
     <div
       @click="openFileDialog"
@@ -10,7 +10,7 @@
       @dragleave="isDragging = false"
       @dragenter="isDragging = true"
       :class="[
-        'file-upload-dropzone rounded-lg border-2 border-dashed p-8 text-center cursor-pointer transition-colors',
+        'file-upload-dropzone rounded-lg border-2 border-dashed p-5 text-center cursor-pointer transition-colors sm:p-8',
         isDragging ? 'file-upload-dropzone--drag border-[#212121] bg-gray-100' : 'border-[#212121] bg-[#FFFFFF] hover:bg-[#FFFFFF]'
       ]"
       role="button"

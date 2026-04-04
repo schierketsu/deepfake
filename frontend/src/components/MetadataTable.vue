@@ -15,20 +15,20 @@
             >
               <div
                 v-if="getCalendarMonth(row.value)"
-                class="doc-meta-calendar flex w-full min-w-0 flex-col rounded-lg border-2 border-solid border-[#212121] bg-white p-3 sm:p-4"
+                class="doc-meta-calendar flex w-full min-w-0 flex-col rounded-lg border-2 border-solid border-[#212121] bg-white p-2.5 sm:p-4"
               >
-                <div class="mb-2 text-center text-sm font-medium text-gray-700 sm:text-base">
+                <div class="mb-1.5 text-center text-xs font-medium text-gray-700 sm:mb-2 sm:text-base">
                   {{ getCalendarMonth(row.value).monthName }} {{ getCalendarMonth(row.value).year }}
                 </div>
-                <div class="grid w-full grid-cols-7 gap-px text-center text-xs">
-                  <div v-for="w in 7" :key="`wd-${idx}-${w}`" class="py-1.5 font-medium text-gray-500">
+                <div class="grid w-full grid-cols-7 gap-px text-center text-[10px] sm:text-xs">
+                  <div v-for="w in 7" :key="`wd-${idx}-${w}`" class="py-1 font-medium text-gray-500 sm:py-1.5">
                     {{ ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'][w - 1] }}
                   </div>
                   <template v-for="(week, wi) in getCalendarMonth(row.value).weeks" :key="`w-${idx}-${wi}`">
                     <div
                       v-for="(day, di) in week"
                       :key="`d-${idx}-${wi}-${di}`"
-                      class="flex min-h-8 items-center justify-center rounded text-xs sm:min-h-9"
+                      class="flex min-h-[1.65rem] items-center justify-center rounded text-[10px] sm:min-h-9 sm:text-xs"
                       :class="day === getCalendarMonth(row.value).highlightDay ? 'bg-[#212121] text-[#FFF5E5] font-semibold' : day ? 'text-gray-700' : 'text-gray-300'"
                     >
                       {{ day || '' }}

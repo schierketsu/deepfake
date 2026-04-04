@@ -1,12 +1,12 @@
 <template>
   <div class="app-shell">
     <header class="header-dark border-b border-[#333]">
-      <div class="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+      <div class="mx-auto max-w-6xl px-3 py-4 sm:px-6 sm:py-6">
         <div>
-          <h1 class="font-polonium text-6xl sm:text-[86px] font-normal leading-[74px] normal-case tracking-normal text-[#FFF5E5]">
+          <h1 class="font-polonium text-[clamp(2rem,9.5vw,2.75rem)] leading-[1.05] sm:text-[86px] sm:leading-[74px] font-normal normal-case tracking-normal text-[#FFF5E5] break-words">
             необманывай.рф
           </h1>
-          <p class="mt-1 text-sm text-[#FFF5E5]">
+          <p class="mt-1 text-xs leading-snug text-[#FFF5E5] sm:text-sm sm:leading-normal">
             Проверьте, сделал ли студент работу самостоятельно
           </p>
         </div>
@@ -26,7 +26,7 @@
     </header>
 
     <main
-      class="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 sm:px-6 sm:pt-8"
+      class="mx-auto w-full max-w-6xl flex-1 px-3 pt-5 sm:px-6 sm:pt-8"
       :class="
         analysisResult
           ? 'pb-0 sm:pb-0'
@@ -35,7 +35,7 @@
             : 'pb-6 sm:pb-8'
       "
     >
-      <div v-if="isAnalyzing" class="card mb-6 p-4 flex items-center gap-4">
+      <div v-if="isAnalyzing" class="card mb-6 p-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
         <div class="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-gray-700" />
         <div>
           <p class="font-medium text-ink">Анализ документа…</p>
@@ -43,9 +43,11 @@
         </div>
       </div>
 
-      <div v-else-if="!analysisResult" class="card mb-0 p-8 text-center">
+      <div v-else-if="!analysisResult" class="card mb-0 px-4 py-6 text-center sm:p-8">
         <p class="text-sm text-gray-500 mb-2">Готово к проверке</p>
-        <h2 class="font-polonium text-3xl font-bold text-gray-900">Загрузите DOCX или PPTX</h2>
+        <h2 class="font-polonium text-2xl font-bold leading-tight text-gray-900 sm:text-3xl sm:leading-normal">
+          Загрузите DOCX или PPTX
+        </h2>
       </div>
 
       <ReportView
@@ -58,10 +60,10 @@
 
     <footer class="site-footer mt-auto">
       <div
-        class="mx-auto max-w-6xl px-4 pb-3 sm:px-6 sm:pb-4 text-center text-sm text-[#FFF5E5]/80"
+        class="mx-auto max-w-6xl px-3 pb-3 text-center text-sm text-[#FFF5E5]/80 sm:px-6 sm:pb-4"
         :class="
           analysisResult
-            ? 'pt-0 sm:pt-0'
+            ? 'max-sm:pt-5'
             : !isAnalyzing
               ? 'pt-6 sm:pt-8'
               : 'pt-4'

@@ -415,7 +415,16 @@
   }
 
   .results-sidebar {
-    @apply flex flex-col min-w-0 rounded-lg border border-gray-200 bg-white p-4;
+    @apply flex flex-col min-w-0 rounded-lg border border-gray-200 bg-white p-3 sm:p-4;
+  }
+
+  /* Список вложений над деталями: на планшете/телефоне ограничить высоту */
+  @media (max-width: 1023.98px) {
+    .results-sidebar--scroll-mobile {
+      max-height: min(40vh, 280px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
   }
 
   .report-view .results-sidebar,
@@ -451,7 +460,12 @@
     @apply min-w-0 rounded-lg border border-gray-200 bg-white;
     position: relative;
     overflow: visible;
-    padding: 5rem 1rem 1rem 1rem;
+    padding: 4.25rem 0.75rem 0.75rem 0.75rem;
+  }
+  @media (min-width: 640px) {
+    .results-detail {
+      padding: 5rem 1rem 1rem 1rem;
+    }
   }
   .results-detail .wave-strip-svg {
     position: absolute;
@@ -491,6 +505,86 @@
   }
   .results-detail .wave-strip-label--na {
     color: #6b7280;
+  }
+}
+
+/* Только узкие экраны: переносы, кнопки, сводка — от sm десктоп как раньше */
+@media (max-width: 639.98px) {
+  .primary-btn,
+  .secondary-btn {
+    padding: 12px 22px;
+    font-size: 14px;
+    line-height: 18px;
+    margin: 12px 0;
+    max-width: 100%;
+  }
+
+  .report-doc-summary__row {
+    flex-wrap: wrap;
+    white-space: normal;
+    align-items: flex-start;
+    gap: 0.25rem 0.5rem;
+  }
+
+  .report-doc-summary__metrics:not(.report-doc-summary__metrics--inline) .report-doc-summary__row dd {
+    margin-left: auto;
+    text-align: right;
+  }
+
+  .report-doc-summary__metrics--inline .report-doc-summary__row dd {
+    margin-left: 0;
+    text-align: left;
+  }
+
+  .report-doc-summary__row--final {
+    min-height: 3.25rem;
+    padding-top: 0.15rem;
+  }
+
+  .report-doc-summary__row--final dd {
+    font-size: 1.5rem;
+    line-height: 1.75rem;
+    width: 100%;
+    margin-left: 0;
+    text-align: left;
+  }
+
+  .results-detail .wave-strip-svg {
+    height: 3.25rem;
+  }
+
+  .results-detail .wave-strip-label {
+    height: 3.25rem;
+    padding-top: 0.45rem;
+    font-size: 1.125rem;
+    line-height: 1.35rem;
+    letter-spacing: 0.06em;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .results-detail .status-chip {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .results-detail .status-chip.status-chip-fill.status-chip-vertical {
+    width: 100%;
+    max-width: 12rem;
+    min-height: 5rem;
+    height: auto;
+    max-height: 9rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .results-detail {
+    padding-top: 3.5rem;
   }
 }
 

@@ -1,6 +1,8 @@
 <template>
   <div class="space-y-4">
-    <dl class="report-doc-summary__metrics report-doc-summary__metrics--inline font-polonium font-bold uppercase tracking-[0.1em] text-gray-900 w-full">
+    <dl
+      class="report-doc-summary__metrics report-doc-summary__metrics--inline w-full font-polonium font-bold uppercase tracking-[0.06em] text-gray-900 sm:tracking-[0.1em]"
+    >
       <div class="report-doc-summary__row">
         <dt class="text-sm sm:text-base">Эвристика</dt>
         <dd class="text-base sm:text-lg">{{ scoreOrDash(metadataScore) }}</dd>
@@ -23,7 +25,7 @@
     </div>
 
     <div>
-      <h5 class="font-polonium text-xl font-bold text-gray-900">Метаданные изображения</h5>
+      <h5 class="font-polonium text-lg font-bold text-gray-900 sm:text-xl">Метаданные изображения</h5>
       <div v-if="imageSections.length === 0" class="mt-3 text-sm text-gray-500">
         Нет детальных метаданных.
       </div>
@@ -33,8 +35,8 @@
           :key="section.title"
           class="overflow-hidden rounded-lg border-2 border-solid border-[#212121] bg-white"
         >
-          <div class="bg-gray-100 px-3 py-2">
-            <h6 class="font-polonium text-xl font-bold text-gray-900">{{ section.title }}</h6>
+          <div class="bg-gray-100 px-2.5 py-2 sm:px-3">
+            <h6 class="font-polonium text-base font-bold text-gray-900 sm:text-xl">{{ section.title }}</h6>
           </div>
           <div v-if="section.rows.length > 0">
             <div
