@@ -25,7 +25,16 @@
       </div>
     </header>
 
-    <main class="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 pb-0 sm:px-6 sm:pt-8 sm:pb-0">
+    <main
+      class="mx-auto w-full max-w-6xl flex-1 px-4 pt-6 sm:px-6 sm:pt-8"
+      :class="
+        analysisResult
+          ? 'pb-0 sm:pb-0'
+          : !isAnalyzing
+            ? 'pb-12 sm:pb-16'
+            : 'pb-6 sm:pb-8'
+      "
+    >
       <div v-if="isAnalyzing" class="card mb-6 p-4 flex items-center gap-4">
         <div class="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-gray-700" />
         <div>
@@ -34,7 +43,7 @@
         </div>
       </div>
 
-      <div v-else-if="!analysisResult" class="card mb-6 p-8 text-center">
+      <div v-else-if="!analysisResult" class="card mb-0 p-8 text-center">
         <p class="text-sm text-gray-500 mb-2">Готово к проверке</p>
         <h2 class="font-polonium text-3xl font-bold text-gray-900">Загрузите DOCX или PPTX</h2>
       </div>
@@ -48,7 +57,16 @@
     </main>
 
     <footer class="site-footer mt-auto">
-      <div class="mx-auto max-w-6xl px-4 pt-0 pb-3 sm:px-6 sm:pb-4 text-center text-sm text-[#FFF5E5]/80">
+      <div
+        class="mx-auto max-w-6xl px-4 pb-3 sm:px-6 sm:pb-4 text-center text-sm text-[#FFF5E5]/80"
+        :class="
+          analysisResult
+            ? 'pt-0 sm:pt-0'
+            : !isAnalyzing
+              ? 'pt-6 sm:pt-8'
+              : 'pt-4'
+        "
+      >
         <p>team @шаньга</p>
         <p class="mt-0.5">Антидипфейк: Вызов • IT-Планета 2026</p>
       </div>
