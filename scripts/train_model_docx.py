@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Обучение классификатора по **табличным признакам метаданных** (StandardScaler + LogisticRegression)
-и сохранение в artifacts/model.joblib + artifacts/training_metrics.json.
+Обучение классификатора по признакам текста DOCX (StandardScaler + LogisticRegression).
+Сохраняет artifacts/model_docx.joblib и artifacts/training_metrics_docx.json.
 """
 from __future__ import annotations
 
@@ -22,28 +22,28 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from ml.metadata_features import METADATA_FEATURE_NAMES  # noqa: E402
+from ml.docx_text_features import DOCX_TEXT_FEATURE_NAMES  # noqa: E402
 
 
 def main() -> int:
-    csv_path = ROOT / "data" / "processed" / "features.csv"
-    out_path = ROOT / "artifacts" / "model.joblib"
-    metrics_path = ROOT / "artifacts" / "training_metrics.json"
+    csv_path = ROOT / "data" / "processed" / "docx_text_features.csv"
+    out_path = ROOT / "artifacts" / "model_docx.joblib"
+    metrics_path = ROOT / "artifacts" / "training_metrics_docx.json"
     if not csv_path.is_file():
-        print(f"Нет файла {csv_path}. Сначала: python scripts/build_dataset.py")
+        print(f"Нет файла {csv_path}. Сначала: python scripts/build_dataset_docx.py")
         return 1
 
     df = pd.read_csv(csv_path)
     if "label" not in df.columns or len(df) < 4:
-        print("Недостаточно данных для обучения (нужно >= 4 строк и колонка label).")
+        print("Недостаточно данных (нужно >= 4 строк и колонка label).")
         return 1
 
-    missing = [c for c in METADATA_FEATURE_NAMES if c not in df.columns]
+    missing = [c for c in DOCX_TEXT_FEATURE_NAMES if c not in df.columns]
     if missing:
-        print("Отсутствуют колонки признаков:", missing[:5], "...")
+        print("Отсутствуют колонки:", missing[:5])
         return 1
 
-    X = df[METADATA_FEATURE_NAMES].values.astype(np.float64)
+    X = df[DOCX_TEXT_FEATURE_NAMES].values.astype(np.float64)
     y = df["label"].values.astype(int)
     if len(np.unique(y)) < 2:
         print("Нужны оба класса (0 и 1) в label.")
@@ -93,14 +93,14 @@ def main() -> int:
         "roc_auc_holdout": auc,
         "pr_auc_holdout": ap,
         "f1_binary_holdout": f1,
-        "feature_names": METADATA_FEATURE_NAMES,
+        "feature_names": DOCX_TEXT_FEATURE_NAMES,
         "model_type": "StandardScaler+LogisticRegression",
     }
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     bundle = {
         "model": model,
-        "feature_names": METADATA_FEATURE_NAMES,
+        "feature_names": DOCX_TEXT_FEATURE_NAMES,
         "metrics": metrics,
     }
     joblib.dump(bundle, out_path)

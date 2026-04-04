@@ -11,6 +11,9 @@ class Summary(BaseModel):
     ml_metadata_score: Optional[int] = None
     final_score: Optional[int] = None
     metadata_ml_available: Optional[bool] = None
+    # Отдельная модель по тексту DOCX (см. ml/docx_text_features, artifacts/model_docx.joblib)
+    doc_nlp_ml_score: Optional[int] = None
+    doc_nlp_ml_available: Optional[bool] = None
 
 class AIMetadata(BaseModel):
     software_detected: List[str]

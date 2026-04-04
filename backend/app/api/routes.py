@@ -65,6 +65,9 @@ async def analyze_document(file: UploadFile = File(...)):
         document_metadata = doc_result.get("document_metadata", {})
         embedded_images = doc_result.get("embedded_images", [])
         images_count = doc_result["images_count"]
+        dn_score = doc_result.get("doc_nlp_ml_score")
+        dn_ok = doc_result.get("doc_nlp_ml_available")
+        dtxt_chars = doc_result.get("document_plain_text_chars")
         if images_count == 0:
             summary = Summary(
                 location=None,
@@ -76,6 +79,8 @@ async def analyze_document(file: UploadFile = File(...)):
                 ml_metadata_score=None,
                 final_score=0,
                 metadata_ml_available=False,
+                doc_nlp_ml_score=dn_score,
+                doc_nlp_ml_available=dn_ok,
             )
             report_data = {
                 "file_type": "document",
@@ -89,6 +94,8 @@ async def analyze_document(file: UploadFile = File(...)):
                     "ml_metadata_score": None,
                     "final_score": 0,
                     "metadata_ml_available": False,
+                    "doc_nlp_ml_score": dn_score,
+                    "doc_nlp_ml_available": dn_ok,
                 },
                 "metadata": {
                     "document_type": doc_type,
@@ -97,6 +104,9 @@ async def analyze_document(file: UploadFile = File(...)):
                     "images": [],
                     "images_count": 0,
                     "images_with_ai_count": 0,
+                    "document_plain_text_chars": dtxt_chars,
+                    "doc_nlp_ml_score": dn_score,
+                    "doc_nlp_ml_available": dn_ok,
                 },
                 "ai_indicators": {
                     "software_detected": [],
@@ -132,6 +142,8 @@ async def analyze_document(file: UploadFile = File(...)):
                 ml_metadata_score=agg.get("ml_metadata_score"),
                 final_score=agg.get("final_score", agg["ai_probability"]),
                 metadata_ml_available=agg.get("metadata_ml_available"),
+                doc_nlp_ml_score=dn_score,
+                doc_nlp_ml_available=dn_ok,
             )
             report_gen = ReportGenerator()
             report_data = {
@@ -146,6 +158,8 @@ async def analyze_document(file: UploadFile = File(...)):
                     "ml_metadata_score": agg.get("ml_metadata_score"),
                     "final_score": agg.get("final_score", agg["ai_probability"]),
                     "metadata_ml_available": agg.get("metadata_ml_available"),
+                    "doc_nlp_ml_score": dn_score,
+                    "doc_nlp_ml_available": dn_ok,
                 },
                 "metadata": {
                     "document_type": doc_type,
@@ -154,6 +168,9 @@ async def analyze_document(file: UploadFile = File(...)):
                     "images": doc_result["images"],
                     "images_count": images_count,
                     "images_with_ai_count": doc_result["images_with_ai_count"],
+                    "document_plain_text_chars": dtxt_chars,
+                    "doc_nlp_ml_score": dn_score,
+                    "doc_nlp_ml_available": dn_ok,
                 },
                 "ai_indicators": {
                     "software_detected": agg["software_detected"],

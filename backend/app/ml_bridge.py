@@ -29,3 +29,24 @@ def predict_visual_score_safe(
 ) -> Tuple[Optional[int], bool]:
     """Устарело: используйте predict_metadata_ml_safe(metadata); image_path игнорируется."""
     return predict_metadata_ml_safe(metadata)
+
+
+def extract_docx_plain_text_safe(path: str) -> str:
+    """Текст DOCX для NLP-слоя. Пустая строка при ошибке."""
+    try:
+        from ml.docx_text import extract_plain_text_from_docx
+
+        return extract_plain_text_from_docx(path) or ""
+    except Exception:
+        return ""
+
+
+def predict_docx_nlp_safe(plain_text: Optional[str]) -> Tuple[Optional[int], bool]:
+    """ML по статистике текста документа (отдельная модель model_docx.joblib)."""
+    try:
+        from ml.inference_docx import predict_docx_nlp_score
+
+        score, ok, _dbg = predict_docx_nlp_score(plain_text)
+        return score, ok
+    except Exception:
+        return None, False

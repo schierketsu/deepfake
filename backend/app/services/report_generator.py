@@ -343,6 +343,9 @@ class ReportGenerator:
         mls = ai_indicators.get("ml_metadata_score")
         fs = ai_indicators.get("final_score")
         mma = ai_indicators.get("metadata_ml_available")
+        mdinfo = report_data.get("metadata") or {}
+        dn_score = mdinfo.get("doc_nlp_ml_score")
+        dn_avail = mdinfo.get("doc_nlp_ml_available")
 
         # 1. Итог проверки
         story.append(_section_banner("1. Итог проверки", font_bold, cw))
@@ -395,7 +398,7 @@ class ReportGenerator:
         story.append(score_box)
         story.append(Spacer(1, 0.12 * inch))
 
-        if ms is not None or mls is not None or fs is not None:
+        if ms is not None or mls is not None or fs is not None or mdinfo.get("document_type") == "word":
             h_ml = str(mls) + "%" if mls is not None else "—"
             if not mma and mls is None:
                 h_ml = "—"
@@ -406,14 +409,24 @@ class ReportGenerator:
                     f"{ms}%" if ms is not None else "—",
                 ],
                 [
-                    "ML",
+                    "ML (метаданные изображений)",
                     h_ml + (" (модель загружена)" if mma else " (модель не загружена)"),
                 ],
+            ]
+            if mdinfo.get("document_type") == "word":
+                if dn_avail and dn_score is not None:
+                    nlp_cell = f"{dn_score}% (модель текста загружена)"
+                elif not dn_avail:
+                    nlp_cell = "-"
+                else:
+                    nlp_cell = "—"
+                detail_rows.append(["ML (текст DOCX)", nlp_cell])
+            detail_rows.append(
                 [
                     "Итог",
                     f"{fs if fs is not None else ai_prob}%",
-                ],
-            ]
+                ]
+            )
             story.append(
                 Paragraph("Разбивка оценок", body_small)
             )

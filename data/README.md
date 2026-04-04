@@ -9,15 +9,22 @@
 
 **«Тема» картинки (пейзаж, лицо, диаграмма) не важна** — важны метка класса и разнообразие источников. Признаки извлекаются только из метаданных (EXIF/XMP/C2PA, счётчики полей, ключевые слова), **без анализа пикселей**.
 
-## Быстрая проверка пайплайна
+## Документы Word (текст → табличные признаки, NLP-слой)
 
-Из корня репозитория:
+Отдельный пайплайн для **полного файла .docx** (не вложенные картинки):
+
+- `raw/documents/real/` — работы **без** заявленной ИИ-помощи в тексте (по вашему протоколу разметки).
+- `raw/documents/ai/` — документы, где текст создан с существенным участием ИИ (по вашему протоколу).
+
+Признаки: длины, доля уникальных слов, пунктуации и т.д. ([`ml/docx_text_features.py`](../ml/docx_text_features.py)) — **не эмбеддинги и не «понимание смысла»**, удобно для интерпретации на защите.
 
 ```bash
-python scripts/seed_minimal_demo.py
+python scripts/build_dataset_docx.py
+python scripts/train_model_docx.py
+python scripts/evaluate_model.py --csv data/processed/docx_text_features.csv --model artifacts/model_docx.joblib --json-out artifacts/eval_docx.json
 ```
 
-## Сборка признаков
+## Сборка признаков (изображения)
 
 ```bash
 python scripts/build_dataset.py
@@ -35,10 +42,13 @@ python scripts/train_model.py
 
 Модель: `artifacts/model.joblib`. Backend подхватывает её автоматически (или задайте `ML_MODEL_PATH`).
 
-## Оценка
+Метрики обучения пишутся в `artifacts/training_metrics.json`.
+
+## Оценка (изображения / общий скрипт)
 
 ```bash
 python scripts/evaluate_model.py
+python scripts/evaluate_model.py --cv 5 --json-out artifacts/evaluation_cv5.json
 ```
 
 ## Объём данных

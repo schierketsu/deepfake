@@ -398,9 +398,24 @@ class DocumentAnalyzer:
             all_anomalies.extend(ai_indicators.get("anomalies", []))
             all_evidence.extend(ai_indicators.get("evidence_from_metadata") or [])
 
+        plain_text = ""
+        doc_nlp_ml_score = None
+        doc_nlp_ml_available = False
+        if document_type == "word":
+            try:
+                plain_text = ml_bridge.extract_docx_plain_text_safe(office_path)
+                doc_nlp_ml_score, doc_nlp_ml_available = ml_bridge.predict_docx_nlp_safe(
+                    plain_text or None
+                )
+            except Exception:
+                pass
+
         return {
             "document_type": document_type,
             "document_metadata": document_metadata,
+            "document_plain_text_chars": len(plain_text),
+            "doc_nlp_ml_score": doc_nlp_ml_score,
+            "doc_nlp_ml_available": doc_nlp_ml_available,
             "embedded_images": [
                 {
                     "filename": image["filename"],

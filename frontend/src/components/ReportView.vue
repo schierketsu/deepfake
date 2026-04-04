@@ -51,17 +51,20 @@
         </div>
         <aside v-if="documentScores" class="w-full shrink-0 sm:w-max sm:max-w-none sm:self-start">
           <dl class="report-doc-summary__metrics font-polonium font-bold uppercase tracking-[0.1em] text-gray-900">
-            <div class="report-doc-summary__row">
-              <dt class="text-sm sm:text-base">Эвристика</dt>
-              <dd class="text-base sm:text-lg">{{ documentScores.meta }}</dd>
+            <div class="report-doc-summary__row report-doc-summary__row--compact">
+              <dt class="text-sm sm:text-base">Изображения</dt>
+              <dd class="text-base sm:text-lg">{{ documentScores.imagesCombined }}</dd>
             </div>
-            <div class="report-doc-summary__row">
-              <dt class="text-sm sm:text-base">ML</dt>
-              <dd class="text-base sm:text-lg">{{ documentScores.vis }}</dd>
+            <div
+              v-if="documentScores.showDocNlp"
+              class="report-doc-summary__row report-doc-summary__row--compact"
+            >
+              <dt class="text-sm sm:text-base">Текст</dt>
+              <dd class="text-base sm:text-lg">{{ documentScores.docNlp }}</dd>
             </div>
-            <div class="report-doc-summary__row">
+            <div class="report-doc-summary__row report-doc-summary__row--final">
               <dt class="text-sm sm:text-base">Итог</dt>
-              <dd class="text-base sm:text-lg">{{ documentScores.fin }}</dd>
+              <dd>{{ documentScores.fin }}</dd>
             </div>
           </dl>
         </aside>
@@ -119,8 +122,9 @@
     </div>
 
     <p class="mt-2 text-xs text-gray-500 leading-snug">
-      Оценки носят вероятностный характер. Эвристика и ML используют только метаданные файла (табличные признаки),
-      не анализируют «сюжет» изображения.
+      Оценки носят вероятностный характер. «Изображения» — среднее по вложениям: половина суммы эвристики и ML по метаданным
+      (без «сюжета» пикселей). «Текст» — модель по статистике текста DOCX (не семантика). «Итог» для Word — среднее между
+      числом в «Изображения» и в «Текст», если оба есть; иначе показано доступное значение.
     </p>
   </div>
   <div class="report-footer-band full-bleed" aria-hidden="true" />
@@ -242,22 +246,64 @@ export default {
     documentScores() {
       const s = this.result.summary
       const ai = this.result.ai_indicators
+      const md = this.result.metadata
       if (!s && !ai) return null
-      const meta = s && s.metadata_score != null ? `${s.metadata_score}%` : (ai && ai.metadata_score != null ? `${ai.metadata_score}%` : '—')
-      let vis = '—'
-      if (s && s.metadata_ml_available && s.ml_metadata_score != null) vis = `${s.ml_metadata_score}%`
-      else if (s && s.metadata_ml_available === false) vis = '— (модель не загружена)'
-      else if (ai && ai.metadata_ml_available && ai.ml_metadata_score != null) vis = `${ai.ml_metadata_score}%`
-      else if (ai && ai.metadata_ml_available === false) vis = '— (модель не загружена)'
-      const fin =
-        s && s.final_score != null
-          ? `${s.final_score}%`
-          : s && s.ai_probability != null
-            ? `${s.ai_probability}%`
-            : ai && ai.final_score != null
-              ? `${ai.final_score}%`
-              : '—'
-      return { meta, vis, fin }
+
+      const imgs = md?.images || []
+      let imagesCombined = '—'
+      let imageAvgNum = null
+      if (imgs.length > 0) {
+        let sum = 0
+        for (const img of imgs) {
+          const ind = img.ai_indicators || {}
+          const h = Number(
+            ind.metadata_score != null ? ind.metadata_score : ind.ai_probability ?? 0
+          )
+          const mlOk = ind.metadata_ml_available
+          const mlRaw = ind.ml_metadata_score
+          const ml = mlOk && mlRaw != null ? Number(mlRaw) : null
+          const per = ml != null && !Number.isNaN(ml) ? (h + ml) / 2 : h
+          sum += Number.isFinite(per) ? per : 0
+        }
+        imageAvgNum = Math.round(sum / imgs.length)
+        imagesCombined = `${imageAvgNum}%`
+      }
+
+      const showDocNlp = md && md.document_type === 'word'
+      let docNlp = '—'
+      let textNum = null
+      if (showDocNlp) {
+        if (s && s.doc_nlp_ml_available && s.doc_nlp_ml_score != null) {
+          textNum = Number(s.doc_nlp_ml_score)
+          docNlp = `${textNum}%`
+        } else if (s && s.doc_nlp_ml_available === false) {
+          docNlp = '-'
+        } else docNlp = '—'
+      }
+
+      let fin = '—'
+      if (showDocNlp) {
+        if (imageAvgNum != null && textNum != null) {
+          fin = `${Math.round((imageAvgNum + textNum) / 2)}%`
+        } else if (imageAvgNum != null) {
+          fin = `${imageAvgNum}%`
+        } else if (textNum != null) {
+          fin = `${textNum}%`
+        }
+      } else if (imageAvgNum != null) {
+        fin = `${imageAvgNum}%`
+      } else {
+        fin =
+          s && s.final_score != null
+            ? `${s.final_score}%`
+            : s && s.ai_probability != null
+              ? `${s.ai_probability}%`
+              : ai && ai.final_score != null
+                ? `${ai.final_score}%`
+                : '—'
+      }
+
+      return { imagesCombined, fin, showDocNlp, docNlp }
     }
   },
   methods: {

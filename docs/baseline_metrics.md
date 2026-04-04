@@ -25,6 +25,13 @@
 | Recall    | Не пропускать реально сгенерированные |
 | F1        | Баланс |
 | ROC-AUC   | Качество ранжирования по вероятности |
+| PR-AUC    | Полезно при дисбалансе классов |
+
+После обучения смотрите `artifacts/training_metrics.json`. Для оценки с кросс-валидацией: `python scripts/evaluate_model.py --cv 5`.
+
+## ML по тексту DOCX (отдельная ветка)
+
+Признаки из [`ml/docx_text_features.py`](../ml/docx_text_features.py), сборка [`scripts/build_dataset_docx.py`](../scripts/build_dataset_docx.py), обучение [`scripts/train_model_docx.py`](../scripts/train_model_docx.py). В API — **`doc_nlp_ml_score`** (только для Word). Это **статистика строки**, не семантика; сравнивайте с моделью по метаданным изображений на одних и тех же документах для сюжета защиты.
 
 ## Ограничения
 
